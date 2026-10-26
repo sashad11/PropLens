@@ -1,0 +1,22 @@
+# Ignore the virtual environment.
+# It contains installed packages that can be recreated.
+.venv/
+
+# Ignore temporary Python files.
+# Python generates these automatically.
+__pycache__/
+*.pyc
+
+# Ignore local environment variables and potential secrets.
+.env
+.env.*
+
+# Ignore DuckDB database files.
+# We'll track reproducible data snapshots separately.
+*.duckdb
+*.duckdb.wal
+
+# Ignore temporary editor and operating-system files.
+.vscode/
+.DS_Store
+Thumbs.db
