@@ -1,118 +1,144 @@
 # PROPLENS - DATABASE LOADING
-# Purpose: Read saved air quality data and load it into DuckDB.
-# Duplicate measurements should not be inserted again.
+# Purpose: Load all saved LAQN JSON files into DuckDB.
+# Existing measurements are skipped to prevent duplicates.
 
 
-# Import the modules we need.
-import json                 # Reads our saved JSON data.
-import duckdb               # Lets Python communicate with DuckDB.
-from pathlib import Path    # Helps us work with file paths.
+# Import the packages and modules we need.
+import json
+import duckdb
+from pathlib import Path
 
 
-# Identify the raw JSON file we previously downloaded.
-raw_file = Path(
-    "data/raw/BX1_NO2_2026-10-19_2026-10-20.json"
-)
+# STEP 1: Find our saved data files.
+
+# Identify the folder containing downloaded API responses.
+raw_folder = Path("Data/raw")
+
+# Find every file in the folder ending with .json.
+# glob("*.json") searches for files matching this pattern.
+# sorted() puts the files in a consistent order.
+raw_files = sorted(raw_folder.glob("*.json"))
+
+# Display how many files we found.
+print(f"Raw JSON files found: {len(raw_files)}")
 
 
-# Open the JSON file and convert its contents into Python data.
-# The file is automatically closed when the 'with' block finishes.
-with open(raw_file, "r", encoding="utf-8") as file:
-    data = json.load(file)
+# STEP 2: Connect to DuckDB.
 
+# Open our existing database.
+connection = duckdb.connect("Data/proplens.duckdb")
 
-# Access the information inside the nested JSON response.
-raw_data = data["RawAQData"]
-
-# Extract the monitoring station and pollutant codes.
-site_code = raw_data["@SiteCode"]
-species_code = raw_data["@SpeciesCode"]
-
-# Get the list of hourly measurements.
-measurements = raw_data["Data"]
-
-
-# Create an empty list to hold our cleaned records.
-cleaned_measurements = []
-
-
-# Go through every hourly measurement.
-for measurement in measurements:
-
-    # Extract the timestamp.
-    timestamp = measurement["@MeasurementDateGMT"]
-
-    # Extract the original measurement value.
-    raw_value = measurement["@Value"]
-
-    # Convert numerical text into a number.
-    # Missing values become None, which DuckDB stores as NULL.
-    if raw_value == "":
-        value = None
-    else:
-        value = float(raw_value)
-
-    # Store the cleaned information as a tuple.
-    # A tuple groups values in a fixed order.
-    # The order matches our database columns.
-    cleaned_measurements.append(
-        (site_code, species_code, timestamp, value)
-    )
-
-
-# Connect to the database we created in Step 11.
-connection = duckdb.connect("data/proplens.duckdb")
-
-
-# Create the table if it does not already exist.
-# This also allows the script to work if the database is new.
+# Create the measurements table if it doesn't exist.
 connection.execute("""
     CREATE TABLE IF NOT EXISTS measurements (
+
+        -- Monitoring station identifier.
         site_code VARCHAR,
+
+        -- Pollutant identifier.
         species_code VARCHAR,
+
+        -- Date and time of the hourly measurement.
         measured_at TIMESTAMP,
+
+        -- Pollution concentration.
+        -- NULL is allowed because some readings are missing.
         value DOUBLE,
+
+        -- Each station, pollutant and timestamp combination is unique.
         PRIMARY KEY (site_code, species_code, measured_at)
     )
 """)
 
 
-# Count how many rows are in the table BEFORE loading.
+# STEP 3: Check how many records we already have.
+
 rows_before = connection.execute(
     "SELECT COUNT(*) FROM measurements"
 ).fetchone()[0]
 
 
-# Insert our cleaned records into DuckDB.
-# The ? symbols are placeholders for the four values in each tuple.
-# ON CONFLICT DO NOTHING skips any record whose primary key
-# already exists in the table.
-connection.executemany(
-    """
-    INSERT INTO measurements
-        (site_code, species_code, measured_at, value)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT DO NOTHING
-    """,
-    cleaned_measurements
-)
+# STEP 4: Process every saved JSON file.
+
+# Keep track of how many measurements we process.
+total_processed = 0
+
+for raw_file in raw_files:
+
+    # Tell us which file is being processed.
+    print(f"Processing: {raw_file.name}")
+
+    # Open the saved file and read its JSON contents.
+    with open(raw_file, "r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    # Access the nested air quality information.
+    raw_data = data["RawAQData"]
+
+    # Identify the station and pollutant.
+    site_code = raw_data["@SiteCode"]
+    species_code = raw_data["@SpeciesCode"]
+
+    # Retrieve the list of hourly measurements.
+    measurements = raw_data["Data"]
+
+    # Create an empty list for this file's cleaned records.
+    cleaned_measurements = []
+
+    # Clean every measurement in the current file.
+    for measurement in measurements:
+
+        # Extract the date and time.
+        timestamp = measurement["@MeasurementDateGMT"]
+
+        # Extract the concentration as text.
+        raw_value = measurement["@Value"]
+
+        # Convert blank values into None.
+        # Convert numerical text into a decimal number.
+        if raw_value == "":
+            value = None
+        else:
+            value = float(raw_value)
+
+        # Group the cleaned fields in the order our SQL expects.
+        cleaned_measurements.append(
+            (site_code, species_code, timestamp, value)
+        )
+
+    # Count the records processed from this file.
+    total_processed += len(cleaned_measurements)
+
+    # Insert the cleaned records into DuckDB.
+    # Existing primary keys are skipped automatically.
+    if cleaned_measurements:
+        connection.executemany(
+            """
+            INSERT INTO measurements
+                (site_code, species_code, measured_at, value)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT DO NOTHING
+            """,
+            cleaned_measurements
+        )
 
 
-# Count how many rows are in the table AFTER loading.
+# STEP 5: Check the results.
+
+# Count the total rows after processing all files.
 rows_after = connection.execute(
     "SELECT COUNT(*) FROM measurements"
 ).fetchone()[0]
 
-
-# Calculate how many new rows were inserted.
+# Calculate how many new measurements were inserted.
 new_rows = rows_after - rows_before
 
-
-# Close the database connection.
+# Close the database safely.
 connection.close()
 
 
-# Print a summary so we can verify what happened.
-print(f"Measurements processed: {len(cleaned_measurements)}")
+# Display a summary of the loading process.
+print("------------------------------")
+print(f"Measurements processed: {total_processed}")
 print(f"New rows inserted: {new_rows}")
 print(f"Total rows in database: {rows_after}")

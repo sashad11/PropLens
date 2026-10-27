@@ -1,0 +1,4 @@
+# Python packages required to run PropLens.
+# Versions match those installed in our virtual environment.
+requests==2.34.2
+duckdb==2.0.0
