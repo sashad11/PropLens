@@ -122,12 +122,12 @@ for site_code, species_code in test_targets:
 
     # Save the current station's results in a dictionary.
 # This gives us one structured record for each test.
-coverage_results.append({
-    "site_code": site_code,
-    "species_code": species_code,
-    "start_date": start_date,
-    "hourly_records": len(measurements),
-    "numerical_readings": valid_readings
+    coverage_results.append({
+        "site_code": site_code,
+        "species_code": species_code,
+        "start_date": start_date,
+        "hourly_records": len(measurements),
+        "numerical_readings": valid_readings
 })
 
 # Choose where to save our coverage test results.
@@ -135,25 +135,74 @@ output_path = Path("Data/station_coverage.csv")
 
 # Create or replace a CSV file containing this test run's results.
 # newline="" avoids unnecessary blank lines on Windows.
+# PROPLENS - PRESERVE COVERAGE RESULTS
+# Purpose: Keep previous test results when we test new stations.
+
+
+# These are the columns we want in our CSV file.
+columns = [
+    "site_code",
+    "species_code",
+    "start_date",
+    "hourly_records",
+    "numerical_readings"
+]
+
+
+# Create an empty list to hold results from previous tests.
+previous_results = []
+
+
+# Check whether our CSV file already exists.
+if output_path.exists():
+
+    # Open the existing CSV file and read its contents.
+    with open(output_path, "r", newline="", encoding="utf-8") as file:
+
+        # DictReader converts each CSV row into a dictionary.
+        reader = csv.DictReader(file)
+
+        # Save the existing rows in our list.
+        previous_results = list(reader)
+
+
+# Combine our previous results with the new test results.
+all_results = previous_results + coverage_results
+
+
+# Create an empty dictionary to remove duplicate test results.
+# Each test is identified by station, pollutant and start date.
+unique_results = {}
+
+
+# Go through every result, old and new.
+for result in all_results:
+
+    # Create a unique identifier for this test.
+    key = (
+        result["site_code"],
+        result["species_code"],
+        result["start_date"]
+    )
+
+    # Store the result using its identifier.
+    # If the same test appears twice, the latest result replaces it.
+    unique_results[key] = result
+
+
+# Write all unique results back to our CSV file.
 with open(output_path, "w", newline="", encoding="utf-8") as file:
 
-    # Define the column names for our CSV table.
-    columns = [
-        "site_code",
-        "species_code",
-        "start_date",
-        "hourly_records",
-        "numerical_readings"
-    ]
-
-    # Create a CSV writer that understands dictionaries.
+    # Set up a CSV writer using our column names.
     writer = csv.DictWriter(file, fieldnames=columns)
 
     # Write the column headings.
     writer.writeheader()
 
-    # Write one row for each tested station.
-    writer.writerows(coverage_results)
+    # Write all the results, without duplicate test identifiers.
+    writer.writerows(unique_results.values())
 
-# Confirm where the results were saved.
-print(f"Coverage results saved to: {output_path}")
+
+# Show how many test results we've preserved.
+print(f"Coverage results saved: {len(unique_results)}")
+print(f"File location: {output_path}")
