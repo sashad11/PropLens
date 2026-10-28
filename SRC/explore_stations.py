@@ -104,54 +104,28 @@ for station in stations:
         })
 
 
-# STEP 4: Display our results.
+# STEP 4: DISPLAY A SUMMARY OF OUR STATIONS
 
-print(f"Potentially suitable stations found: {len(suitable_stations)}")
-
-# Show the first 10 matching stations.
-# [:10] selects up to 10 items from our list.
-for station in suitable_stations[:10]:
-
-    print("------------------------------")
-    print(f"Code: {station['code']}")
-    print(f"Name: {station['name']}")
-    print(f"Borough: {station['borough']}")
-    print(f"Pollutants: {station['pollutants']}")
-
-    # PROPLENS - EXPLORE GEOGRAPHICAL COVERAGE
-# Purpose: Find which London boroughs contain potentially
-# suitable monitoring stations.
+# Show how many stations meet our initial filters.
+print(f"Potentially suitable stations: {len(suitable_stations)}")
 
 
-# Create an empty set to hold borough names.
-# A set stores unique values, so each borough appears only once.
+# STEP 5: CHECK GEOGRAPHICAL COVERAGE
+
+# Create a set of borough names.
+# A set automatically removes duplicates.
 boroughs = set()
 
-
-# Go through every suitable monitoring station.
 for station in suitable_stations:
-
-    # Add the station's borough to our set.
-    # If the borough is already there, it won't be added twice.
     boroughs.add(station["borough"])
 
-
-# Display how many different boroughs we found.
-print(f"\nBoroughs represented: {len(boroughs)}")
-
-
-# Display the boroughs in alphabetical order.
-# sorted() arranges the names alphabetically.
-for borough in sorted(boroughs):
-    print(borough)
-
-# PROPLENS - FIND STATIONS FOR INVESTMENT AREAS
-# Purpose: Explore monitoring stations in our three chosen boroughs.
+# Count the number of different boroughs.
+print(f"London boroughs represented: {len(boroughs)}")
 
 
-# PROPLENS - PROVISIONAL PROPERTY INVESTMENT AREAS
-# We are exploring six boroughs across different parts of London.
-# These are candidate locations, not our final property selections.
+# STEP 6: EXPLORE OUR PROPERTY INVESTMENT AREAS
+
+# These are the six areas we're considering for PropLens.
 investment_areas = [
     "Westminster",       # Central London
     "Tower Hamlets",     # East London
@@ -161,21 +135,19 @@ investment_areas = [
     "Brent"              # Northwest London
 ]
 
-
-# Go through each borough, one at a time.
+# Check each of our six areas.
 for area in investment_areas:
 
-    # Print the borough name so our results are easy to read.
     print(f"\n--- {area} ---")
 
-    # Go through the stations we identified earlier.
+    # Find stations belonging to this borough.
     for station in suitable_stations:
 
-        # Check whether the station belongs to this borough.
         if station["borough"] == area:
 
-            # Show the station code, name and pollutants.
-            print(f"Code: {station['code']}")
-            print(f"Name: {station['name']}")
-            print(f"Pollutants: {station['pollutants']}")
-            print("------------------------------")
+            # Display the station's code and pollutants.
+            print(
+                f"{station['code']} | "
+                f"{station['name']} | "
+                f"{station['pollutants']}"
+            )

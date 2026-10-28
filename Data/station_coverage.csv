@@ -2,3 +2,7 @@ site_code,species_code,start_date,hourly_records,numerical_readings
 LH0,NO2,2026-10-19,24,0
 TH4,NO2,2026-10-19,24,22
 HG1,NO2,2026-10-19,24,0
+EN5,NO2,2026-10-19,24,24
+BL0,NO2,2026-10-19,24,0
+RI2,PM25,2026-10-19,24,24
+GT1,NO2,2026-10-19,24,24

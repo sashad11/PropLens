@@ -16,10 +16,15 @@ import csv
 # Purpose: Find alternative usable measurements in areas
 # where our first test returned no numerical values.
 
+# PROPLENS - NORTH AND WEST LONDON TEST
+
+# Each pair contains a station code and pollutant code.
+# We want to see whether these stations have numerical readings.
 test_targets = [
-    ("TH4", "NO2"),    # East London: try NO2 instead of PM2.5.
-    ("HG1", "NO2"),    # North London: try another Haringey station.
-    ("LH0", "NO2")     # West London: try NO2 instead of PM2.5.
+    ("EN5", "NO2"),    # Enfield — North
+    ("BL0", "NO2"),    # Camden — North/Central
+    ("RI2", "PM25"),   # Richmond — Southwest
+    ("GT1", "NO2")     # Kensington and Chelsea — West
 ]
 
 
