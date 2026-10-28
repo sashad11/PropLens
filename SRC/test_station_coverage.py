@@ -20,11 +20,17 @@ import csv
 
 # Each pair contains a station code and pollutant code.
 # We want to see whether these stations have numerical readings.
+# Test potentially better stations near our buildings.
+# Each pair contains a station code and pollutant code.
 test_targets = [
-    ("EN5", "NO2"),    # Enfield — North
-    ("BL0", "NO2"),    # Camden — North/Central
-    ("RI2", "PM25"),   # Richmond — Southwest
-    ("GT1", "NO2")     # Kensington and Chelsea — West
+    ("WM0", "NO2"),
+    ("WM0", "PM25"),
+    ("HK6", "NO2"),
+    ("HK6", "PM25"),
+    ("CE2", "NO2"),
+    ("CE2", "PM25"),
+    ("CD1", "NO2"),
+    ("CD1", "PM25")
 ]
 
 
