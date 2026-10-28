@@ -15,8 +15,13 @@ import json
 # Import requests to communicate with the LAQN API.
 import requests
 
-# Import our shopping list from config.py.
-from config import monitoring_targets, historical_start_date
+# Read our station choices, starting date and download limit
+# from the configuration file.
+from config import (
+    monitoring_targets,
+    historical_start_date,
+    max_days_per_target
+)
 
 
 # STEP 1: Set up our dates and folders.
@@ -151,9 +156,10 @@ for target in monitoring_targets:
         # Move to the next date.
         current_date = next_date
 
-        # TEMPORARY TEST LIMIT:
-        # Stop after one new day for this station/pollutant.
-        if downloads_for_target >= 1:
+        # Stop downloading for this target once we've reached
+        # the maximum number of days allowed in config.py.
+        # This helps us control how many API requests we make.
+        if downloads_for_target >= max_days_per_target:
             break
 
 

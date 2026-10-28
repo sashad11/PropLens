@@ -14,10 +14,12 @@ from pathlib import Path
 # Identify the folder containing downloaded API responses.
 raw_folder = Path("Data/raw")
 
-# Find every file in the folder ending with .json.
-# glob("*.json") searches for files matching this pattern.
-# sorted() puts the files in a consistent order.
-raw_files = sorted(raw_folder.glob("*.json"))
+# Find only our daily measurement files.
+# Each filename ends with two dates in YYYY-MM-DD format.
+# This excludes london_stations.json, which contains station information.
+raw_files = sorted(
+    raw_folder.glob("*_????-??-??_????-??-??.json")
+)
 
 # Display how many files we found.
 print(f"Raw JSON files found: {len(raw_files)}")
