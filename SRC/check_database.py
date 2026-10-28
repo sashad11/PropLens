@@ -89,3 +89,40 @@ for date, count in daily_counts:
 
 # Close the database connection.
 connection.close()
+
+
+# PROPLENS - HISTORICAL DATE COVERAGE
+# Purpose: Check the earliest and latest measurements
+# stored for each station and pollutant.
+
+import duckdb
+
+# Connect to the PropLens database.
+connection = duckdb.connect("Data/proplens.duckdb")
+
+# Find each station's available date range.
+results = connection.execute("""
+    SELECT
+        site_code,
+        species_code,
+        MIN(measured_at) AS first_reading,
+        MAX(measured_at) AS last_reading,
+        COUNT(DISTINCT CAST(measured_at AS DATE)) AS days_recorded
+    FROM measurements
+    GROUP BY site_code, species_code
+    ORDER BY site_code, species_code
+""").fetchall()
+
+print("\nPROPLENS - HISTORICAL DATE COVERAGE")
+print("------------------------------------------")
+
+# Display the results for each station.
+for site_code, species_code, first, last, days in results:
+    print(
+        f"{site_code} | {species_code} | "
+        f"{first.date()} to {last.date()} | "
+        f"{days} days recorded"
+    )
+
+# Close our connection when finished.
+connection.close()

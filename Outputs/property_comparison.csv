@@ -1,0 +1,7 @@
+property_name,station_code,distance_km,average_no2_ug_m3,recorded_hours,valid_hours,completeness_percent,data_quality
+West London Office Space,GT1,2.33,12.63,2112,2097,99.3,GOOD
+Croydon Commercial Unit,CR9,0.25,16.35,2112,2108,99.8,GOOD
+North London Business Space,EN5,2.03,22.04,2112,2106,99.7,GOOD
+Tower Hamlets Workspace,TH4,1.46,24.17,2112,1773,83.9,CAUTION
+Westminster Office Opportunity,CE3,0.33,28.2,2112,2103,99.6,GOOD
+Brent Retail Opportunity,BT4,1.51,32.86,2112,1914,90.6,CAUTION

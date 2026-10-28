@@ -51,6 +51,18 @@ connection.execute("""
         PRIMARY KEY (site_code, species_code, measured_at)
     )
 """)
+# Create a second table to remember which JSON files
+# have already been successfully loaded into DuckDB.
+connection.execute("""
+    CREATE TABLE IF NOT EXISTS processed_files (
+
+        -- Each filename can appear only once.
+        filename VARCHAR PRIMARY KEY,
+
+        -- Record when we finished loading the file.
+        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+""")
 
 
 # STEP 3: Check how many records we already have.
@@ -67,7 +79,18 @@ total_processed = 0
 
 for raw_file in raw_files:
 
-    # Tell us which file is being processed.
+    # Look for this filename in our processing log.
+    already_processed = connection.execute(
+        "SELECT 1 FROM processed_files WHERE filename = ?",
+        [raw_file.name]
+    ).fetchone()
+
+    # Skip the file if we've already loaded it successfully.
+    if already_processed:
+        print(f"Already processed: {raw_file.name}")
+        continue
+
+    # Otherwise, we need to load this file.
     print(f"Processing: {raw_file.name}")
 
     # Open the saved file and read its JSON contents.
@@ -111,18 +134,38 @@ for raw_file in raw_files:
     # Count the records processed from this file.
     total_processed += len(cleaned_measurements)
 
-    # Insert the cleaned records into DuckDB.
-    # Existing primary keys are skipped automatically.
-    if cleaned_measurements:
-        connection.executemany(
-            """
-            INSERT INTO measurements
-                (site_code, species_code, measured_at, value)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT DO NOTHING
-            """,
-            cleaned_measurements
+        # Start a transaction so loading the measurements and
+    # recording the processed file succeed together.
+    connection.execute("BEGIN TRANSACTION")
+
+    try:
+        # Insert measurements into DuckDB.
+        # Existing primary keys are skipped to prevent duplicates.
+        if cleaned_measurements:
+            connection.executemany(
+                """
+                INSERT INTO measurements
+                    (site_code, species_code, measured_at, value)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """,
+                cleaned_measurements
+            )
+
+        # Mark this JSON file as successfully processed.
+        connection.execute(
+            "INSERT INTO processed_files (filename) VALUES (?)",
+            [raw_file.name]
         )
+
+        # Save both changes permanently.
+        connection.execute("COMMIT")
+
+    except Exception:
+        # Undo changes to this file's data if something fails.
+        # This prevents a file being incorrectly marked as loaded.
+        connection.execute("ROLLBACK")
+        raise
 
 
 # STEP 5: Check the results.

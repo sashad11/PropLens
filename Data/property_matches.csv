@@ -1,0 +1,7 @@
+property_id,property_name,station_code,station_name,distance_km
+P001,Westminster Office Opportunity,CE3,Regent Street (The Crown Estate),0.33
+P002,Tower Hamlets Workspace,TH4,Tower Hamlets - Blackwall,1.46
+P003,Croydon Commercial Unit,CR9,Croydon - Park Lane,0.25
+P004,North London Business Space,EN5,Enfield - Bowes Primary School,2.03
+P005,West London Office Space,GT1,Kensington and Chelsea - Station Walk,2.33
+P006,Brent Retail Opportunity,BT4,Brent - Ikea,1.51

@@ -26,18 +26,9 @@ monitoring_targets = [
 ]
 
 
-# The earliest date for our initial historical collection.
-# We'll expand this after testing the multi-station pipeline.
-historical_start_date = "2026-10-19"
+# Start collecting historical measurements from 1 August 2026.
+historical_start_date = "2026-08-01"
 
-
-# Define how much historical data we eventually want.
-# We start with a short period while testing each station.
-# Once the extraction is reliable, we'll expand the date range.
-historical_start_date = "2026-10-19"
-
-
-# Maximum number of new days to download for each station
-# during one pipeline run.
-# We start with 3 days to test historical collection safely.
-max_days_per_target = 3
+# Allow up to 30 new daily downloads per target per run.
+# The collector will continue skipping dates already cached.
+max_days_per_target = 50

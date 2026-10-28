@@ -1,6 +1,10 @@
-# PROPLENS - MULTIPLE STATION DATA COLLECTION
-# Purpose: Collect missing air quality data for multiple stations.
-# For testing, download at most ONE missing day per target.
+# PROPLENS - INCREMENTAL DATA COLLECTION
+
+# Purpose: Download missing daily air quality measurements
+# for the stations and pollutants selected in config.py.
+
+# Previously downloaded JSON files are reused.
+# A configurable limit controls downloads per target.
 
 
 # Import Python's tools for working with dates.
@@ -14,6 +18,8 @@ import json
 
 # Import requests to communicate with the LAQN API.
 import requests
+# Used to pause briefly between requests to the LAQN API.
+import time
 
 # Read our station choices, starting date and download limit
 # from the configuration file.
@@ -153,6 +159,10 @@ for target in monitoring_targets:
         # Increase the number of downloads made for this target.
         downloads_for_target += 1
 
+        # Pause for one second between API requests.
+        # This reduces how quickly we send requests to LAQN.
+        time.sleep(1)
+
         # Move to the next date.
         current_date = next_date
 
@@ -163,5 +173,5 @@ for target in monitoring_targets:
             break
 
 
-# This message appears after every configured target is checked.
-print("\nCollection test finished.")
+# Confirm that we've checked every configured monitoring target.
+print("\nData collection finished.")

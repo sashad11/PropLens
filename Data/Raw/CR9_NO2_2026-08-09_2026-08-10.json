@@ -1,0 +1,104 @@
+{
+    "RawAQData": {
+        "@SiteCode": "CR9",
+        "@SpeciesCode": "NO2",
+        "Data": [
+            {
+                "@MeasurementDateGMT": "2026-08-09 00:00:00",
+                "@Value": "35"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 01:00:00",
+                "@Value": "42"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 02:00:00",
+                "@Value": "33"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 03:00:00",
+                "@Value": "16"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 04:00:00",
+                "@Value": "13"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 05:00:00",
+                "@Value": "14"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 06:00:00",
+                "@Value": "35"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 07:00:00",
+                "@Value": "41"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 08:00:00",
+                "@Value": "27"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 09:00:00",
+                "@Value": "20"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 10:00:00",
+                "@Value": "18"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 11:00:00",
+                "@Value": "14"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 12:00:00",
+                "@Value": "25"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 13:00:00",
+                "@Value": "20"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 14:00:00",
+                "@Value": "24"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 15:00:00",
+                "@Value": "17"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 16:00:00",
+                "@Value": "18"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 17:00:00",
+                "@Value": "17"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 18:00:00",
+                "@Value": "20"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 19:00:00",
+                "@Value": "34"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 20:00:00",
+                "@Value": "22"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 21:00:00",
+                "@Value": "10"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 22:00:00",
+                "@Value": "7"
+            },
+            {
+                "@MeasurementDateGMT": "2026-08-09 23:00:00",
+                "@Value": "9"
+            }
+        ]
+    }
+}

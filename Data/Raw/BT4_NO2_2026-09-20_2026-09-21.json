@@ -1,0 +1,104 @@
+{
+    "RawAQData": {
+        "@SiteCode": "BT4",
+        "@SpeciesCode": "NO2",
+        "Data": [
+            {
+                "@MeasurementDateGMT": "2026-09-20 00:00:00",
+                "@Value": "8.6"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 01:00:00",
+                "@Value": "6"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 02:00:00",
+                "@Value": "8.7"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 03:00:00",
+                "@Value": "6.1"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 04:00:00",
+                "@Value": "9.2"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 05:00:00",
+                "@Value": "9.2"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 06:00:00",
+                "@Value": "10.3"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 07:00:00",
+                "@Value": "11"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 08:00:00",
+                "@Value": "3.5"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 09:00:00",
+                "@Value": "2.9"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 10:00:00",
+                "@Value": "14.3"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 11:00:00",
+                "@Value": "15.8"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 12:00:00",
+                "@Value": "29.7"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 13:00:00",
+                "@Value": "25"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 14:00:00",
+                "@Value": "27.5"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 15:00:00",
+                "@Value": "28.3"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 16:00:00",
+                "@Value": "30.6"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 17:00:00",
+                "@Value": "9.1"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 18:00:00",
+                "@Value": "18.9"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 19:00:00",
+                "@Value": "57"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 20:00:00",
+                "@Value": "69.9"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 21:00:00",
+                "@Value": "66.8"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 22:00:00",
+                "@Value": "68.7"
+            },
+            {
+                "@MeasurementDateGMT": "2026-09-20 23:00:00",
+                "@Value": "64.7"
+            }
+        ]
+    }
+}
