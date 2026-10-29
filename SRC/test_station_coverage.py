@@ -18,19 +18,15 @@ import csv
 
 # PROPLENS - NORTH AND WEST LONDON TEST
 
-# Each pair contains a station code and pollutant code.
-# We want to see whether these stations have numerical readings.
-# Test potentially better stations near our buildings.
-# Each pair contains a station code and pollutant code.
+# Test PM2.5 availability at stations near our buildings.
 test_targets = [
-    ("WM0", "NO2"),
-    ("WM0", "PM25"),
-    ("HK6", "NO2"),
-    ("HK6", "PM25"),
-    ("CE2", "NO2"),
-    ("CE2", "PM25"),
-    ("CD1", "NO2"),
-    ("CD1", "PM25")
+    ("GT1", "PM25"),
+    ("KF1", "PM25"),
+    ("CE3", "PM25"),
+    ("BL0", "PM25"),
+    ("MR8", "PM25"),
+    ("BT5", "PM25"),
+    ("BT8", "PM25")
 ]
 
 

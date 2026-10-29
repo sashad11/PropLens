@@ -249,11 +249,9 @@ for property_row in properties:
                     pollutant.get("@SpeciesCode")
                 )
 
-        # Skip stations that list neither NO2 nor PM25.
-        if not any(
-            code in active_pollutants
-            for code in ("NO2", "PM25")
-        ):
+        # Only explore stations that list PM2.5 measurements.
+        # This helps us find suitable candidates for our new analysis.
+        if "PM25" not in active_pollutants:
             continue
 
         # Read the station's geographical coordinates.

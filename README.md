@@ -27,7 +27,9 @@ https://api.erg.ic.ac.uk/AirQuality/help
 
 The LAQN provides air pollution measurements from monitoring stations across London.
 
-The current analysis primarily focuses on **nitrogen dioxide (NO₂)**, measured in micrograms per cubic metre (µg/m³). The pipeline also collects particulate matter (PM₂.₅) measurements for selected stations.
+The project analyses two pollutants: nitrogen dioxide (NO₂) and fine particulate matter (PM₂.₅), both measured in micrograms per cubic metre (µg/m³).
+
+The historical dataset covers 1 August to 28 October 2026, with hourly measurements collected from selected London Air Quality Network monitoring stations.
 
 The main historical dataset covers **1 August to 27 October 2026**, with hourly readings from selected monitoring stations.
 
@@ -110,6 +112,8 @@ The project produces two main reports:
 
 - `Outputs/property_comparison.csv` — Average NO₂, building type, monitoring station, distance, completeness and warnings.
 - `Outputs/monthly_trends.csv` — Monthly average NO₂ and the number of valid and recorded hourly measurements.
+- `Outputs/pm25_comparison.csv` — PM₂.₅ averages, matched stations, distances, measurement completeness and data-quality warnings for buildings with confirmed matches.
+- `Outputs/monthly_pm25.csv` — Monthly PM₂.₅ averages and valid-hour counts for the three monitoring stations used in the PM₂.₅ comparison.
 
 The comparison report also identifies buildings that share the same station, so identical measurements are not presented as independent evidence.
 
@@ -172,6 +176,8 @@ Existing cached daily JSON files are reused rather than downloaded again. Previo
 .\.venv\Scripts\python.exe SRC/match_properties.py
 .\.venv\Scripts\python.exe SRC/compare_properties.py
 .\.venv\Scripts\python.exe SRC/monthly_trends.py
+.\.venv\Scripts\python.exe SRC/compare_pm25.py
+.\.venv\Scripts\python.exe SRC/monthly_pm25.py
 ```
 
 The matching script creates or updates `Data/property_matches.csv`.
