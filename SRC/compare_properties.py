@@ -1,18 +1,30 @@
 
-# PROPLENS - PROPERTY ENVIRONMENTAL COMPARISON
-# Purpose: Combine property-to-station matches with
-# historical LAQN pollution measurements.
+# PROPLENS - BUILDING ENVIRONMENTAL COMPARISON
+#
+# Purpose:
+# Compare historical NO2 measurements near six London buildings.
+# Include the building type, station distance and data quality.
+#
+# Important:
+# Station measurements describe the monitoring location,
+# not the exact pollution exposure of people inside a building.
+
+
+# IMPORTS
 
 import csv
+from pathlib import Path
+
 import duckdb
 
 
 # STEP 1: CONNECT TO OUR DATABASE
 
+# Open the DuckDB database containing historical LAQN readings.
 connection = duckdb.connect("Data/proplens.duckdb")
 
-# Read the property matching results from our CSV.
-# DuckDB can read CSV files directly using SQL.
+# Read our building-to-station matches as a temporary SQL view.
+# A view lets us query the CSV without copying it into a new table.
 connection.execute("""
     CREATE OR REPLACE TEMP VIEW property_matches AS
     SELECT *
@@ -20,89 +32,91 @@ connection.execute("""
 """)
 
 
-# STEP 2: COMPARE PROPERTY LOCATIONS
+# STEP 2: CALCULATE THE AIR QUALITY COMPARISON
 
-# Join each property to measurements from its matched station.
+# JOIN connects each building to measurements from its station.
+# We only compare NO2 readings so the units are consistent.
 results = connection.execute("""
     SELECT
         p.property_name,
+        p.building_type,
         p.station_code,
         p.distance_km,
 
-        -- Calculate average NO2 concentration.
-        -- AVG ignores NULL values automatically.
+        -- Average of available numerical NO2 readings.
+        -- AVG automatically ignores NULL values.
         ROUND(AVG(m.value), 2) AS average_no2,
 
-        -- Count all stored hourly measurements.
+        -- Total hourly records stored for this station.
         COUNT(*) AS recorded_hours,
 
-        -- Count measurements containing numerical values.
+        -- Number of records with a numerical reading.
         COUNT(m.value) AS valid_hours,
 
-        -- Calculate completeness among stored records.
+        -- Percentage of stored records containing readings.
         ROUND(
             100.0 * COUNT(m.value) / COUNT(*),
             1
         ) AS completeness_percent
 
-    FROM property_matches p
+    FROM property_matches AS p
 
-    -- Connect properties to their matched monitoring stations.
-    JOIN measurements m
+    JOIN measurements AS m
         ON p.station_code = m.site_code
 
-    -- Only compare NO2 with NO2.
     WHERE m.species_code = 'NO2'
 
     GROUP BY
         p.property_name,
+        p.building_type,
         p.station_code,
         p.distance_km
 
-    -- Show properties from lowest to highest average NO2.
-    ORDER BY average_no2 ASC
+    -- Show buildings from lowest to highest average NO2.
+    ORDER BY average_no2 ASC, p.property_name
 """).fetchall()
 
 
-# STEP 3: DISPLAY THE RESULTS
+# STEP 3: IDENTIFY SHARED MONITORING STATIONS
 
-print("\nPROPLENS - PROPERTY ENVIRONMENTAL COMPARISON")
-print("------------------------------------------")
+# Several buildings may use the same station.
+# Their averages will be identical because the source is identical.
+station_counts = {}
 
 for row in results:
-    name, station, distance, average, recorded, valid, completeness = row
-        # Classify the measurement coverage using PropLens rules.
-    # These are project thresholds, not official LAQN ratings.
-    if completeness >= 95:
-        quality_status = "GOOD"
-    elif completeness >= 80:
-        quality_status = "CAUTION"
-    else:
-        quality_status = "POOR"
 
-    print(f"\nProperty: {name}")
-    print(f"Station: {station}")
-    print(f"Distance: {distance:.2f} km")
-    print(f"Average NO2: {average:.2f}")
-    print(f"Data completeness: {completeness}% ({valid}/{recorded})")
-    # Show whether missing data may affect the comparison.
-    print(f"Data quality: {quality_status}")
+    station_code = row[2]
+
+    # Count how many buildings use each station.
+    station_counts[station_code] = (
+        station_counts.get(station_code, 0) + 1
+    )
 
 
-# STEP 4: CLOSE THE DATABASE
+# STEP 4: PREPARE AND DISPLAY THE REPORT
 
-# STEP 4: SAVE THE PROPERTY COMPARISON
+print("\nPROPLENS - BUILDING ENVIRONMENTAL COMPARISON")
+print("--------------------------------------------")
 
-# Create a list to hold the final report rows.
+# Store the report results so we can export them to CSV.
 report_rows = []
 
-# Go through each result returned by our SQL query.
 for row in results:
 
-    # Unpack the values in the same order as our SQL SELECT.
-    name, station, distance, average, recorded, valid, completeness = row
+    # Unpack the SQL results in the order they were selected.
+    (
+        name,
+        building_type,
+        station,
+        distance,
+        average,
+        recorded,
+        valid,
+        completeness
+    ) = row
 
-    # Apply our existing data-quality rules.
+    # Classify measurement completeness.
+    # These are PropLens project rules, not official LAQN ratings.
     if completeness >= 95:
         quality_status = "GOOD"
     elif completeness >= 80:
@@ -110,46 +124,101 @@ for row in results:
     else:
         quality_status = "POOR"
 
-    # Store one report row for each property.
+    # Classify distance between the building and station.
+    # These are practical project flags, NOT scientific cutoffs.
+    if distance <= 2:
+        distance_status = "NEARBY"
+    elif distance <= 3:
+        distance_status = "CAUTION"
+    else:
+        distance_status = "DISTANT"
+
+    # Check whether other buildings use the same station.
+    shared_count = station_counts[station]
+
+    if shared_count > 1:
+        shared_station = "YES"
+    else:
+        shared_station = "NO"
+
+    # Display the results in the terminal.
+    print(f"\nBuilding: {name}")
+    print(f"Building type: {building_type}")
+    print(f"Station: {station}")
+    print(f"Distance: {distance:.2f} km ({distance_status})")
+    print(f"Average NO2: {average:.2f} µg/m³")
+    print(f"Data completeness: {completeness}% ({valid}/{recorded})")
+    print(f"Data quality: {quality_status}")
+
+    if shared_station == "YES":
+        print(
+            f"Note: This station is shared by "
+            f"{shared_count} buildings."
+        )
+
+    if distance_status == "DISTANT":
+        print(
+            "Warning: The station is over 3 km away. "
+            "Its readings may not represent conditions "
+            "near this building."
+        )
+
+    # Prepare a row for the final CSV report.
     report_rows.append({
         "property_name": name,
+        "building_type": building_type,
         "station_code": station,
         "distance_km": distance,
+        "distance_status": distance_status,
         "average_no2_ug_m3": average,
         "recorded_hours": recorded,
         "valid_hours": valid,
         "completeness_percent": completeness,
-        "data_quality": quality_status
+        "data_quality": quality_status,
+        "shared_station": shared_station
     })
 
-# Choose the column names for our CSV report.
+
+# STEP 5: SAVE THE COMPARISON TO CSV
+
+# Create the output folder if it doesn't already exist.
+Path("Outputs").mkdir(exist_ok=True)
+
+# Define our report columns in the order we want them.
 columns = [
     "property_name",
+    "building_type",
     "station_code",
     "distance_km",
+    "distance_status",
     "average_no2_ug_m3",
     "recorded_hours",
     "valid_hours",
     "completeness_percent",
-    "data_quality"
+    "data_quality",
+    "shared_station"
 ]
 
-# Create the output folder if it doesn't exist.
-from pathlib import Path
-Path("Outputs").mkdir(exist_ok=True)
+# Export the report so it can be reviewed outside Python.
+output_file = "Outputs/property_comparison.csv"
 
-# Save the report as a CSV file.
 with open(
-    "Outputs/property_comparison.csv",
+    output_file,
     "w",
     newline="",
     encoding="utf-8"
 ) as file:
 
-    # Create the CSV writer and write the results.
     writer = csv.DictWriter(file, fieldnames=columns)
+
+    # Write column headings followed by the six building rows.
     writer.writeheader()
     writer.writerows(report_rows)
 
-print("\nReport saved to Outputs/property_comparison.csv")
+
+# STEP 6: CLOSE THE DATABASE
+
+# Close the connection after all SQL queries have finished.
 connection.close()
+
+print(f"\nReport saved to {output_file}")
