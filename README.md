@@ -1,146 +1,176 @@
 # What I built and who for
 
-**PropLens — London's air, through the spaces we use**
+**PropLens | Exploring London's air through the spaces we use**
 
-PropLens is a Python and SQL data engineering project that explores historical air pollution measurements near different types of buildings across London.
+Air quality is something that affects all of us, but it's not something we necessarily think about when going about our daily lives. Whether we're studying, working, receiving medical care or simply at home, we're constantly interacting with the environment around us.
 
-The project considers the populations who use these spaces, including children at schools, patients at hospitals, older residents in care homes, students at universities, office workers and people living in residential buildings.
+That was the thinking behind **PropLens**.
 
-Its purpose is to make environmental data more accessible and encourage consideration of air quality in relation to the people using different spaces.
+I built PropLens as a data engineering project that collects and analyses London's historical air pollution data, with a particular interest in the different people who use different types of buildings.
 
-PropLens currently examines six real London locations:
+For example, air quality around a primary school may be especially relevant when considering children's developing lungs, while a care home or hospital brings different population vulnerabilities into consideration.
 
-- Fox Primary School — School
-- St Thomas' Hospital — Hospital
-- Magnolia Court Care Home — Care home
-- UCL North-West Wing — University
-- 80 Strand — Commercial office
-- Barbican Estate — Residential
+I wanted to explore how I could use data to make these environmental considerations more visible and understandable.
 
-**Important limitation:** PropLens does not measure pollution exposure inside individual buildings or assess personal health risks. It compares measurements from nearby monitoring stations, which may not represent conditions at the buildings themselves.
+For this first version, I've chosen six real London locations:
+
+| Building | Type |
+|---|---|
+| Fox Primary School | School |
+| St Thomas' Hospital | Hospital |
+| Magnolia Court Care Home | Care home |
+| UCL North-West Wing | University |
+| 80 Strand | Office |
+| Barbican Estate | Residential |
+
+PropLens uses Python and DuckDB to collect, store and analyse air pollution measurements from monitoring stations near these buildings.
+
+**A note on interpretation:** PropLens is an exploratory tool, not a health-risk assessment. The measurements come from monitoring stations, not from inside the buildings themselves. They provide environmental context rather than a direct measurement of anyone's personal exposure.
 
 # The data
 
-The project uses data from the **London Air Quality Network (LAQN)**, accessed through its public API:
+The main data source is the **London Air Quality Network (LAQN)**, accessed through its API:
 
 https://api.erg.ic.ac.uk/AirQuality/help
 
-The LAQN provides air pollution measurements from monitoring stations across London.
+For this project, I've focused on two pollutants:
 
-The project analyses two pollutants: nitrogen dioxide (NO₂) and fine particulate matter (PM₂.₅), both measured in micrograms per cubic metre (µg/m³).
+- **Nitrogen dioxide (NO₂):** A gas associated with combustion, particularly traffic emissions, which can affect respiratory health.
+- **Fine particulate matter (PM₂.₅):** Tiny airborne particles that can reach deep into the lungs and are associated with respiratory and cardiovascular health effects.
 
-The historical dataset covers 1 August to 28 October 2026, with hourly measurements collected from selected London Air Quality Network monitoring stations.
+Both are measured in micrograms per cubic metre (µg/m³).
 
-The main historical dataset covers **1 August to 27 October 2026**, with hourly readings from selected monitoring stations.
+My current historical dataset covers **1 August to 28 October 2026**, providing 89 days of hourly measurements from selected LAQN monitoring stations.
 
-Data used in PropLens includes:
+I've also used LAQN station metadata, which includes station names, geographical coordinates, monitoring environments and listed pollutants.
 
-- **Raw API responses:** Original JSON files retained for traceability.
-- **Station metadata:** Monitoring station names, coordinates, monitoring types and available pollutants.
-- **Building locations:** A CSV containing six real London buildings, their types and approximate geographical coordinates.
-- **Processed measurements:** Hourly pollution records stored in DuckDB.
-- **Analysis outputs:** CSV reports showing air quality comparisons and monthly trends.
+Alongside this, I created a small CSV dataset containing the six building locations, their types and approximate coordinates.
 
-The building coordinates are approximate reference points. Some may represent a postcode or a wider estate rather than a specific entrance.
+The project retains several forms of data:
 
-**Data attribution:** Air pollution measurements and monitoring station information are sourced from the London Air Quality Network. The project is an independent educational analysis and is not affiliated with LAQN. Users should refer to LAQN's published information and terms when reusing its data.
+- **Raw JSON:** Original API responses, kept so I can trace the measurements back to their source.
+- **Building and station CSVs:** The locations used in the analysis and their monitoring-station matches.
+- **DuckDB database:** Cleaned hourly measurements used for querying and analysis.
+- **Output CSVs:** Building comparisons and monthly pollutant trends.
+
+Some building coordinates are approximate reference points rather than exact entrances.
+
+**Data attribution:** Air quality measurements and monitoring-station information are provided by the London Air Quality Network (LAQN). PropLens is an independent educational project and is not affiliated with LAQN. Please refer to LAQN's published guidance and terms when reusing the source data.
 
 # How it works
 
-PropLens follows an **extract, transform and load (ETL)** process.
+PropLens follows an **Extract, Transform and Load (ETL)** process.
 
-**1. Extract**
+I wanted to build something that could be run more than once, rather than a script that downloads some data, produces a result and stops there.
 
-Python requests historical hourly air pollution measurements from the LAQN API.
+**1. Collecting the data**
 
-The collection script:
+The collection script requests hourly measurements from the LAQN API for selected monitoring stations and pollutants.
 
-- Requests data for selected station–pollutant combinations.
-- Saves original API responses as JSON files.
-- Checks whether a daily file has already been downloaded before requesting it again.
-- Introduces a delay between requests to avoid repeatedly contacting the API unnecessarily.
+Each daily API response is saved as its original JSON file.
 
-**2. Transform and load**
+Before making a request, the script checks whether that file has already been downloaded. If it exists, the script reuses the cached version instead of contacting the API again.
 
-The loading script reads the saved JSON responses and processes the hourly observations.
+I've also included a short delay between requests to avoid unnecessarily overloading the API.
 
-It:
+This was one of my first lessons in thinking about a data pipeline beyond simply getting the data successfully.
 
-- Extracts station codes, pollutant codes, timestamps and measured values.
-- Represents missing numerical measurements as SQL `NULL` values.
-- Stores the processed records in a DuckDB database.
-- Uses a primary key and conflict handling to prevent duplicate measurements.
-- Tracks previously processed source files so unchanged files are not loaded repeatedly.
+**2. Loading the data into DuckDB**
 
-This allows the pipeline to be rerun without duplicating existing data.
+The loading script reads the saved JSON files and extracts the station code, pollutant, measurement timestamp and recorded value.
 
-**3. Check data quality**
+Missing numerical readings are stored as SQL `NULL` values rather than being replaced with zero, because missing data and a genuine zero measurement mean different things.
 
-PropLens examines the proportion of stored hourly measurements that contain valid numerical readings.
+The measurements are then stored in DuckDB.
 
-It uses project-defined completeness labels:
+To make the pipeline safe to rerun, I introduced:
 
-- **GOOD:** At least 95% numerical readings.
-- **CAUTION:** At least 80%, but below 95%.
-- **POOR:** Below 80%.
+- A composite primary key to prevent duplicate station–pollutant–timestamp records.
+- Conflict handling to avoid inserting duplicates.
+- A `processed_files` table to track which raw files have already been loaded.
 
-These are internal project thresholds, not official LAQN data-quality ratings.
+I tested this by running the pipeline twice. The second run inserted **zero new records**, confirming that rerunning it with unchanged cached data did not duplicate measurements.
 
-The completeness calculation currently considers stored records. It does not fully identify timestamps that may be absent from the dataset.
+**3. Checking data quality**
 
-**4. Match buildings to monitoring stations**
+One thing I quickly realised is that having data doesn't necessarily mean having *usable* data.
 
-PropLens uses latitude and longitude coordinates and the Haversine formula to estimate straight-line distances between buildings and monitoring stations.
+Some monitoring stations were listed as active but returned no numerical readings on the dates I tested. Others had substantial gaps.
 
-The project compares six building locations with selected stations that have collected historical data.
+PropLens therefore calculates the percentage of stored measurements containing valid numerical values.
 
-A separate exploration step identifies other nearby LAQN stations. These candidates are not automatically selected because proximity alone does not guarantee suitable or complete data.
+I've used three simple project-defined labels:
 
-For reporting, distances are labelled using provisional project guidelines:
+| Completeness | Label |
+|---|---|
+| 95% or above | GOOD |
+| 80% to below 95% | CAUTION |
+| Below 80% | POOR |
+
+These aren't official LAQN ratings. They're indicators I introduced to make missing data easier to spot.
+
+An important limitation is that the current calculation checks missing values within stored records; it doesn't fully identify timestamps that are absent altogether.
+
+**4. Matching buildings to monitoring stations**
+
+To connect the air pollution data with my chosen buildings, I used latitude and longitude coordinates and the Haversine formula to calculate approximate straight-line distances.
+
+My initial approach was to select monitoring stations across London and then match properties to them.
+
+However, once I settled on the six building types, I realised that **choosing a station purely because it's nearby isn't necessarily the best approach**.
+
+A nearby station might have missing measurements, or it might be located beside a busy road when the building is in a quieter environment.
+
+So I explored alternative stations, tested their data availability and considered the distance and monitoring environment before deciding which measurements to use.
+
+For transparency, the building reports flag stations using my own provisional distance categories:
 
 - **NEARBY:** Up to 2 km.
 - **CAUTION:** Over 2 km and up to 3 km.
 - **DISTANT:** Over 3 km.
 
-These labels are not scientific thresholds for pollution exposure.
+These are practical project indicators, not scientific exposure thresholds.
 
-**5. Analyse and export**
+**5. Analysing the results**
 
-DuckDB SQL queries combine building matches with historical monitoring measurements.
+I used SQL queries in DuckDB to calculate historical averages, measurement completeness and monthly trends.
 
-The project produces two main reports:
+The main outputs are:
 
-- `Outputs/property_comparison.csv` — Average NO₂, building type, monitoring station, distance, completeness and warnings.
-- `Outputs/monthly_trends.csv` — Monthly average NO₂ and the number of valid and recorded hourly measurements.
-- `Outputs/pm25_comparison.csv` — PM₂.₅ averages, matched stations, distances, measurement completeness and data-quality warnings for buildings with confirmed matches.
-- `Outputs/monthly_pm25.csv` — Monthly PM₂.₅ averages and valid-hour counts for the three monitoring stations used in the PM₂.₅ comparison.
+| Output file | What it shows |
+|---|---|
+| `Outputs/property_comparison.csv` | NO₂ building comparisons, distances and quality warnings |
+| `Outputs/monthly_trends.csv` | Monthly NO₂ averages and valid reading counts |
+| `Outputs/pm25_comparison.csv` | PM₂.₅ building comparisons for locations with selected station matches |
+| `Outputs/monthly_pm25.csv` | Monthly PM₂.₅ trends by monitoring station |
 
-The comparison report also identifies buildings that share the same station, so identical measurements are not presented as independent evidence.
+One issue I wanted to be careful about was **avoiding misleading comparisons**.
 
-**Current limitations**
+Several buildings share the same monitoring station. That means they also share the same underlying pollution measurements, even though they're different buildings.
 
-The six buildings are currently matched to three distinct NO₂ monitoring stations. Four buildings share station CE3.
+I made sure this is highlighted in the NO₂ report rather than presenting identical measurements as independent observations.
 
-Two buildings have monitoring stations more than 3 km away, so their results require particular caution.
+For PM₂.₅, Barbican Estate currently has no confirmed suitable station match, so I've excluded it from the numerical comparison rather than assigning it an arbitrary value.
 
-Monthly comparisons may also be affected by missing readings, and October 2026 contains only a partial month.
+The analysis also makes no claim about whether individual buildings are safe or unsafe. Understanding the limitations of the data is just as important as calculating the averages.
 
 # How to run it
+
+PropLens was developed using Python, DuckDB and Visual Studio Code.
 
 **Requirements**
 
 - Python 3
-- Python packages: `requests` and `duckdb`
-- Internet connection for collecting new LAQN data
+- Git
+- Python packages listed in `requirements.txt`
+- An internet connection when collecting new data from LAQN
 
-**1. Clone the repository and open the project folder**
+**1. Clone the repository**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/sashad11/PropLens.git
 cd PropLens
 ```
-
-Replace `<repository-url>` with the GitHub repository URL.
 
 **2. Create a virtual environment**
 
@@ -150,27 +180,29 @@ On Windows PowerShell:
 python -m venv .venv
 ```
 
-**3. Install dependencies**
+**3. Install the required packages**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install requests duckdb
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-**4. Configure data collection**
+**4. Review the collection settings**
 
-Open `SRC/config.py` to review the selected monitoring stations, pollutants, historical start date and request limits.
+Open `SRC/config.py` to see the selected station–pollutant combinations, historical start date and maximum number of new daily downloads per target.
 
-**5. Run the data pipeline**
+**5. Run the ETL pipeline**
 
 ```powershell
 .\.venv\Scripts\python.exe SRC/pipeline.py
 ```
 
-This runs the data collection and loading scripts.
+This runs the data collection and loading stages.
 
-Existing cached daily JSON files are reused rather than downloaded again. Previously processed files are also tracked in the database.
+Previously downloaded JSON files are reused, and files already recorded as processed are not loaded again.
 
-**6. Run the building analyses**
+The local DuckDB database is not included in the repository because it can be recreated from the raw data.
+
+**6. Generate the reports**
 
 ```powershell
 .\.venv\Scripts\python.exe SRC/match_properties.py
@@ -180,52 +212,64 @@ Existing cached daily JSON files are reused rather than downloaded again. Previo
 .\.venv\Scripts\python.exe SRC/monthly_pm25.py
 ```
 
-The matching script creates or updates `Data/property_matches.csv`.
+The resulting CSV files are saved in the `Outputs` folder.
 
-The two analysis scripts produce CSV reports in the `Outputs` folder.
-
-**7. Optional data-quality checks**
+**7. Optional database checks**
 
 ```powershell
 .\.venv\Scripts\python.exe SRC/check_database.py
 .\.venv\Scripts\python.exe SRC/check_data_quality.py
 ```
 
-Run commands from the project's main directory so the relative file paths resolve correctly.
-
-**Note:** The repository's final dependency list and setup instructions will be checked before submission.
+Run these commands from the main PropLens directory.
 
 # What I would do next
 
-Given more development time, I would:
+There are several things I'd like to explore if I had more time.
 
-1. **Improve monitoring station selection.** Assess nearby stations using distance, station type, historical availability and similarities between the monitoring environment and the building surroundings.
+**Improve station matching**
 
-2. **Expand the particulate matter analysis.** Include PM₂.₅ comparisons alongside NO₂ where suitable historical measurements are available.
+This is probably my biggest priority. I'd like to make station selection more automated, taking into account distance, station type, historical completeness and the surroundings of each building.
 
-3. **Strengthen data-quality checks.** Detect entirely missing timestamps and investigate longer periods of incomplete measurements, rather than checking only records already stored.
+I'd also like to investigate alternative buildings or monitoring locations where the current matches are too distant.
 
-4. **Improve resilience to API failures.** Introduce more targeted error handling, retries and tests for unexpected API responses.
+**Expand the historical dataset**
 
-5. **Improve interpretation for different populations.** Provide additional context about why air quality is relevant to users of schools, hospitals, care homes and other buildings, without claiming to measure individual exposure or health outcomes.
+The project currently covers almost three months. Extending this to six months or a full year would allow for more meaningful seasonal comparisons and a better understanding of longer-term trends.
 
-6. **Develop a clearer visual interface.** Display comparisons, monitoring-station locations and historical trends through a dashboard.
+**Strengthen missing-data checks**
+
+I'd like to identify entirely missing timestamps, rather than just counting missing values in records that have already been stored.
+
+**Make the pipeline more resilient**
+
+Although the collection and loading process works, I'd like to introduce more targeted tests and better handling of API failures, unexpected responses and temporary network issues.
+
+**Expand the PM₂.₅ analysis**
+
+PM₂.₅ is now included, but there is room to improve geographical coverage and find suitable monitoring stations for all six buildings.
+
+**Build an interactive dashboard**
+
+Eventually, I'd like PropLens to become something people can explore for themselves, with a map of monitoring stations, building locations, pollutant comparisons and historical trends.
+
+For now, I wanted to prioritise getting the underlying data pipeline working properly before adding a more visual interface.
 
 # Where AI helped
 
-I used ChatGPT as a learning and development assistant while building PropLens.
+I used AI throughout the project as a learning and development assistant.
 
-AI helped me:
+As someone still building confidence with Python and data engineering, I found it useful for breaking unfamiliar tasks into manageable steps and understanding *why* certain approaches worked.
 
-- Understand Python concepts, DuckDB SQL and the structure of an ETL pipeline.
-- Break the project into manageable development stages.
-- Draft and explain code, including comments describing what each section does.
-- Troubleshoot errors involving file paths, variable definitions and code organisation.
-- Discuss data engineering choices such as caching, duplicate prevention, monitoring-station selection and data-quality warnings.
-- Improve the clarity of project documentation and reporting.
+AI supported me with:
 
-I used the explanations to develop my understanding of the code and tested the scripts locally using real LAQN API responses.
+- Understanding Python concepts, SQL queries and ETL design.
+- Structuring scripts and adding explanations to make the code easier to follow.
+- Troubleshooting errors and understanding their causes.
+- Exploring approaches to caching, duplicate prevention and data-quality checks.
+- Discussing monitoring-station selection and the limitations of environmental data.
+- Improving the clarity of the project documentation.
 
-I also changed the project's direction during development, moving from a commercial-property comparison to exploring air quality in relation to the populations using different buildings.
+I tested the code locally, reviewed the outputs and made decisions about how I wanted the project to develop.
 
-**AI was used as a support tool, not as a substitute for testing or understanding the implementation.**
+For example, PropLens originally started as an idea focused on commercial property investment. As I explored the data and thought more about its potential uses, I became more interested in the people who occupy different spaces and why environmental conditions might matter to them. That change in direction shaped the final project.
