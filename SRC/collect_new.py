@@ -1,28 +1,19 @@
+
 # PROPLENS - INCREMENTAL DATA COLLECTION
+#
+# Download missing daily LAQN measurements.
+# Reuse saved files, retry temporary API failures,
+# validate responses and report unsuccessful downloads.
 
-# Purpose: Download missing daily air quality measurements
-# for the stations and pollutants selected in config.py.
-
-# Previously downloaded JSON files are reused.
-# A configurable limit controls downloads per target.
-
-
-# Import Python's tools for working with dates.
 from datetime import datetime, timedelta, timezone
-
-# Import Path for working with files and folders.
 from pathlib import Path
-
-# Import json to save API responses.
 import json
-
-# Import requests to communicate with the LAQN API.
-import requests
-# Used to pause briefly between requests to the LAQN API.
 import time
 
-# Read our station choices, starting date and download limit
-# from the configuration file.
+import requests
+
+from api_utils import validate_response
+
 from config import (
     monitoring_targets,
     historical_start_date,
@@ -30,73 +21,107 @@ from config import (
 )
 
 
-# STEP 1: Set up our dates and folders.
+# STEP 1: SET UP DATES AND FOLDERS
 
-# Convert our configured starting date from text into a date.
 start_date = datetime.strptime(
     historical_start_date, "%Y-%m-%d"
 ).date()
 
-# Find yesterday's date in UTC.
-# We avoid collecting today's incomplete measurements.
+# Yesterday is our latest complete collection date.
 yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
 
-# Choose the folder where raw JSON files are stored.
-raw_folder = Path("Data/raw")
-
-# Create the folder if it does not already exist.
+# Keep the folder name consistent across operating systems.
+raw_folder = Path("Data/Raw")
 raw_folder.mkdir(parents=True, exist_ok=True)
 
+# Collect unsuccessful requests so we can report them later.
+failed_downloads = []
 
-# STEP 2: Go through every monitoring target.
+MAX_ATTEMPTS = 3
 
-# This outer loop visits each dictionary in our shopping list.
+
+# STEP 3: REQUEST DATA WITH RETRIES
+
+def download_data(url):
+    """
+    Retry temporary network/server problems up to three times.
+    Return the downloaded JSON if successful.
+    """
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+
+        try:
+            response = requests.get(url, timeout=30)
+
+            # Most 4xx errors indicate a request problem.
+            # 429 means rate-limited, so we can retry it.
+            if (
+                400 <= response.status_code < 500
+                and response.status_code != 429
+            ):
+                response.raise_for_status()
+
+            response.raise_for_status()
+
+            # A successful HTTP response might still contain
+            # invalid JSON. The caller will report that failure.
+            return response.json()
+
+        except requests.RequestException as error:
+
+            # Do not retry ordinary client errors such as 404.
+            status = getattr(
+                getattr(error, "response", None),
+                "status_code",
+                None
+            )
+
+            if status is not None and 400 <= status < 500 and status != 429:
+                raise
+
+            print(
+                f"Attempt {attempt}/{MAX_ATTEMPTS} failed: {error}"
+            )
+
+            if attempt == MAX_ATTEMPTS:
+                raise
+
+            # Gradually increase the wait between attempts.
+            time.sleep(2 * attempt)
+
+
+# STEP 4: CHECK EVERY TARGET AND DATE
+
 for target in monitoring_targets:
 
-    # Read the station and pollutant from the current dictionary.
     site_code = target["site_code"]
     species_code = target["species_code"]
 
-    # Tell us which combination we're working on.
     print(f"\nChecking station {site_code}, pollutant {species_code}")
 
-    # Begin checking dates from our configured starting date.
     current_date = start_date
-
-    # Count how many days we've downloaded for this target.
     downloads_for_target = 0
 
-
-    # STEP 3: Check which dates are missing.
-
-    # This inner loop checks one calendar day at a time.
     while current_date <= yesterday:
 
-        # Calculate the following date.
+        # Respect the per-target download limit.
+        if downloads_for_target >= max_days_per_target:
+            break
+
         next_date = current_date + timedelta(days=1)
 
-        # Create a filename identifying this exact request.
         filename = (
             f"{site_code}_{species_code}_{current_date}_{next_date}.json"
         )
 
-        # Find where the response should be saved.
         file_path = raw_folder / filename
 
-        # If the file already exists, we don't need to download it.
+        # Cached days require no new API request.
         if file_path.exists():
-            print(f"{current_date}: Already saved — skipping")
-
-            # Move to the next day.
+            print(f"{current_date}: Already saved - skipping")
             current_date = next_date
-
-            # Skip the remaining instructions in this iteration.
             continue
 
-
-        # STEP 4: Download the missing day's measurements.
-
-        # Build the API address using the current target and dates.
         url = (
             "https://api.erg.ic.ac.uk/AirQuality/Data/SiteSpecies/"
             f"SiteCode={site_code}/SpeciesCode={species_code}/"
@@ -105,73 +130,73 @@ for target in monitoring_targets:
 
         print(f"Downloading {site_code} {species_code}: {current_date}")
 
-        # Send a request to the LAQN API.
-        response = requests.get(url, timeout=30)
+        try:
+            # Fetch and validate before saving.
+            data = download_data(url)
 
-        # Raise an error if the HTTP request fails.
-        response.raise_for_status()
+            measurements = validate_response(
+                data, site_code, species_code
+            )
 
-        # Convert the response into Python dictionaries and lists.
-        data = response.json()
+            # Write to a temporary file first.
+            # Only rename it to .json when writing succeeds.
+            temporary_path = file_path.with_suffix(".json.tmp")
 
+            with open(
+                temporary_path,
+                "w",
+                encoding="utf-8"
+            ) as file:
+                json.dump(data, file, indent=4)
 
-        # STEP 5: Validate the response before saving.
+            temporary_path.replace(file_path)
 
-        # Find the main section containing the measurements.
-        raw_data = data.get("RawAQData")
+            valid_readings = sum(
+                1 for measurement in measurements
+                if measurement.get("@Value") not in ("", None)
+            )
 
-        # Check that the section exists and is a dictionary.
-        if not isinstance(raw_data, dict):
-            raise ValueError("API response is missing RawAQData.")
+            print(f"Saved: {filename}")
+            print(f"Hourly records: {len(measurements)}")
+            print(f"Non-empty readings: {valid_readings}")
 
-        # Check that the station and pollutant match our request.
-        if (
-            raw_data.get("@SiteCode") != site_code
-            or raw_data.get("@SpeciesCode") != species_code
-        ):
-            raise ValueError("API returned an unexpected station or pollutant.")
+            downloads_for_target += 1
 
-        # Get the hourly measurement list.
-        measurements = raw_data.get("Data")
+            # Give the API a short break between downloads.
+            time.sleep(1)
 
-        # Confirm the measurement records are stored in a list.
-        if not isinstance(measurements, list):
-            raise ValueError("API response has no measurement list.")
+        except (requests.RequestException, ValueError) as error:
 
+            print(f"FAILED: {filename} - {error}")
 
-        # STEP 6: Save the original API response.
+            failed_downloads.append({
+                "file": filename,
+                "reason": str(error)
+            })
 
-        # Open a new file without overwriting an existing one.
-        with open(file_path, "x", encoding="utf-8") as file:
-            json.dump(data, file, indent=4)
+            # Leave the daily JSON absent so a future run
+            # knows it still needs downloading.
 
-        # Count readings that contain a numerical value.
-        # Empty strings indicate missing measurements.
-        valid_readings = sum(
-            1 for measurement in measurements
-            if measurement.get("@Value") not in ("", None)
-        )
-
-        print(f"Saved: {filename}")
-        print(f"Hourly records: {len(measurements)}")
-        print(f"Non-empty readings: {valid_readings}")
-
-        # Increase the number of downloads made for this target.
-        downloads_for_target += 1
-
-        # Pause for one second between API requests.
-        # This reduces how quickly we send requests to LAQN.
-        time.sleep(1)
-
-        # Move to the next date.
+        # Continue checking subsequent dates.
         current_date = next_date
 
-        # Stop downloading for this target once we've reached
-        # the maximum number of days allowed in config.py.
-        # This helps us control how many API requests we make.
-        if downloads_for_target >= max_days_per_target:
-            break
 
+# STEP 5: REPORT THE OUTCOME
 
-# Confirm that we've checked every configured monitoring target.
 print("\nData collection finished.")
+
+if failed_downloads:
+
+    print(f"\nUnsuccessful downloads: {len(failed_downloads)}")
+
+    for failure in failed_downloads:
+        print(f"{failure['file']}: {failure['reason']}")
+
+    # A non-zero exit code makes the failure visible to
+    # pipeline.py rather than silently claiming success.
+    raise RuntimeError(
+        f"Collection incomplete: {len(failed_downloads)} failed downloads."
+    )
+
+else:
+    print("No download failures detected.")

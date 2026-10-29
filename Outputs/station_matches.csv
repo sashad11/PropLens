@@ -1,0 +1,13 @@
+property_id,property_name,building_type,pollutant,station_code,station_name,station_type,distance_km,distance_status,completeness_pct,recorded_hours,valid_hours
+P001,Fox Primary School,School,NO2,GT1,Kensington and Chelsea - Station Walk,Urban Background,1.55,NEARBY,99.3,2136,2121
+P001,Fox Primary School,School,PM25,GT1,Kensington and Chelsea - Station Walk,Urban Background,1.55,NEARBY,99.3,2136,2120
+P002,St Thomas Hospital,Hospital,NO2,CE3,Regent Street (The Crown Estate),Roadside,1.97,NEARBY,99.0,2136,2114
+P002,St Thomas Hospital,Hospital,PM25,CE3,Regent Street (The Crown Estate),Roadside,1.97,NEARBY,92.9,2136,1985
+P003,Magnolia Court Care Home,Care Home,NO2,BT4,Brent - Ikea,Roadside,4.1,DISTANT,90.7,2136,1938
+P003,Magnolia Court Care Home,Care Home,PM25,BT8,Brent - ARK Franklin Primary Academy,Roadside,3.99,DISTANT,99.1,2136,2116
+P004,UCL North-West Wing,University,NO2,CE3,Regent Street (The Crown Estate),Roadside,1.51,NEARBY,99.0,2136,2114
+P004,UCL North-West Wing,University,PM25,CE3,Regent Street (The Crown Estate),Roadside,1.51,NEARBY,92.9,2136,1985
+P005,80 Strand,Office,NO2,CE3,Regent Street (The Crown Estate),Roadside,1.21,NEARBY,99.0,2136,2114
+P005,80 Strand,Office,PM25,CE3,Regent Street (The Crown Estate),Roadside,1.21,NEARBY,92.9,2136,1985
+P006,Barbican Estate,Residential,NO2,CE3,Regent Street (The Crown Estate),Roadside,3.21,DISTANT,99.0,2136,2114
+P006,Barbican Estate,Residential,PM25,CE3,Regent Street (The Crown Estate),Roadside,3.21,DISTANT,92.9,2136,1985

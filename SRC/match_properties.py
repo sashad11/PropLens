@@ -13,47 +13,11 @@
 
 import csv                  # Reads and writes CSV files.
 import json                 # Reads saved LAQN station information.
+from geo_utils import distance_km
 
 from math import (
     radians, sin, cos, sqrt, atan2
 )                           # Mathematical functions for distance calculations.
-
-
-# STEP 1: DEFINE THE DISTANCE CALCULATION
-
-def distance_km(lat1, lon1, lat2, lon2):
-    """
-    Calculate the approximate straight-line distance between
-    two locations using latitude and longitude.
-
-    Returns the distance in kilometres.
-    """
-
-    # Approximate radius of Earth in kilometres.
-    earth_radius = 6371
-
-    # Convert coordinates from degrees to radians.
-    # Python's trigonometric functions use radians.
-    lat1 = radians(lat1)
-    lon1 = radians(lon1)
-    lat2 = radians(lat2)
-    lon2 = radians(lon2)
-
-    # Calculate the differences between the locations.
-    latitude_difference = lat2 - lat1
-    longitude_difference = lon2 - lon1
-
-    # Apply the Haversine formula to estimate distance.
-    a = (
-        sin(latitude_difference / 2) ** 2
-        + cos(lat1) * cos(lat2)
-        * sin(longitude_difference / 2) ** 2
-    )
-
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-    # Return the calculated distance.
-    return earth_radius * c
 
 
 # STEP 2: LOAD OUR SIX BUILDING LOCATIONS
@@ -81,7 +45,7 @@ if not properties:
 # Read the station metadata we previously downloaded.
 # This includes station names, types and geographical coordinates.
 with open(
-    "Data/raw/london_stations.json",
+    "Data/Raw/london_stations.json",
     "r",
     encoding="utf-8"
 ) as file:
