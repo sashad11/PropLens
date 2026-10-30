@@ -154,6 +154,14 @@ For PM₂.₅, Barbican Estate currently has no confirmed suitable station match
 
 The analysis also makes no claim about whether individual buildings are safe or unsafe. Understanding the limitations of the data is just as important as calculating the averages.
 
+### Project diagrams
+
+I've included two diagrams to show how PropLens works and how the data is organised.
+
+[View the data pipeline](docs/pipeline.md)
+
+[View the DuckDB data model](docs/data_model.md)
+
 # How to run it
 
 PropLens was developed using Python, DuckDB and Visual Studio Code.

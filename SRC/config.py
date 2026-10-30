@@ -44,3 +44,7 @@ historical_start_date = "2026-08-01"
 # Allow up to 30 new daily downloads per target per run.
 # The collector will continue skipping dates already cached.
 max_days_per_target = 100
+
+# Number of recent completed days to download again.
+# LAQN may revise measurements after first publishing them.
+refresh_days = 7

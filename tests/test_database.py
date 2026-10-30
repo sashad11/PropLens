@@ -1,8 +1,8 @@
 
-# PROPLENS - DATABASE TESTS
+# PROPLENS DATABASE TESTS
 #
-# Test that the same hourly measurement cannot be
-# inserted twice into our measurements table.
+# Check that DuckDB prevents duplicate measurements
+# and updates existing readings when LAQN corrects them.
 
 import unittest
 import duckdb
@@ -11,19 +11,16 @@ import duckdb
 class TestDatabase(unittest.TestCase):
 
     def test_duplicate_measurement_is_not_inserted(self):
-
-        # Use a temporary database held in memory.
-        # It disappears when the test finishes.
+        # Create a temporary database.
         connection = duckdb.connect(":memory:")
 
-        # Create a simplified copy of our measurements table.
+        # Create our test measurements table.
         connection.execute("""
             CREATE TABLE measurements (
                 site_code VARCHAR,
                 species_code VARCHAR,
                 measured_at TIMESTAMP,
                 value DOUBLE,
-
                 PRIMARY KEY (
                     site_code,
                     species_code,
@@ -32,7 +29,7 @@ class TestDatabase(unittest.TestCase):
             )
         """)
 
-        # Insert one example NO2 measurement.
+        # Insert the same measurement twice.
         insert_sql = """
             INSERT INTO measurements
             VALUES ('GT1', 'NO2', '2026-08-01 12:00:00', 24.5)
@@ -40,17 +37,73 @@ class TestDatabase(unittest.TestCase):
         """
 
         connection.execute(insert_sql)
-
-        # Attempt to insert exactly the same measurement again.
         connection.execute(insert_sql)
 
-        # Count how many records exist.
-        result = connection.execute("""
-            SELECT COUNT(*) FROM measurements
-        """).fetchone()[0]
+        # Only one measurement should exist.
+        row_count = connection.execute(
+            "SELECT COUNT(*) FROM measurements"
+        ).fetchone()[0]
 
-        # We expect only one record, not two.
-        self.assertEqual(result, 1)
+        self.assertEqual(row_count, 1)
+
+        connection.close()
+
+    def test_corrected_measurement_updates(self):
+        # Create a separate temporary database.
+        connection = duckdb.connect(":memory:")
+
+        # Create our test measurements table.
+        connection.execute("""
+            CREATE TABLE measurements (
+                site_code VARCHAR,
+                species_code VARCHAR,
+                measured_at TIMESTAMP,
+                value DOUBLE,
+                PRIMARY KEY (
+                    site_code,
+                    species_code,
+                    measured_at
+                )
+            )
+        """)
+
+        # Save the original measurement.
+        connection.execute("""
+            INSERT INTO measurements
+            VALUES ('GT1', 'NO2', '2026-10-27 12:00:00', 24.5)
+        """)
+
+        # Simulate LAQN correcting the reading.
+        connection.execute("""
+            INSERT INTO measurements
+            VALUES ('GT1', 'NO2', '2026-10-27 12:00:00', 23.8)
+
+            ON CONFLICT (
+                site_code,
+                species_code,
+                measured_at
+            )
+
+            DO UPDATE SET
+                value = EXCLUDED.value
+
+            WHERE measurements.value
+                  IS DISTINCT FROM EXCLUDED.value
+        """)
+
+        # Check that the corrected value was stored.
+        result = connection.execute(
+            "SELECT value FROM measurements"
+        ).fetchone()[0]
+
+        self.assertAlmostEqual(result, 23.8)
+
+        # Check that no duplicate measurement was created.
+        row_count = connection.execute(
+            "SELECT COUNT(*) FROM measurements"
+        ).fetchone()[0]
+
+        self.assertEqual(row_count, 1)
 
         connection.close()
 

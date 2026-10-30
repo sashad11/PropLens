@@ -1,211 +1,266 @@
 
-# PROPLENS - PM2.5 BUILDING COMPARISON
+# PROPLENS: PM2.5 BUILDING COMPARISON
 #
-# Purpose:
-# Compare historical PM2.5 measurements near London buildings.
-# Use confirmed stations with usable historical data.
+# PURPOSE:
+# Compare historical PM2.5 measurements near six London buildings.
 #
-# Important:
-# These are station measurements, not direct measurements
-# of people's exposure at individual buildings.
+# The monitoring stations are selected automatically using
+# our station matching report.
+#
+# IMPORTANT:
+# These readings describe pollution at monitoring stations.
+# They do not measure exposure inside individual buildings.
 
 
-# IMPORTS
+# STEP 1: IMPORT THE TOOLS WE NEED
 
+# Read and write CSV files.
 import csv
+
+# Find files and folders.
 from pathlib import Path
 
+# Query our database.
 import duckdb
 
 
-# STEP 1: DEFINE OUR PM2.5 STATION MATCHES
+# STEP 2: FIND OUR PROJECT FILES
 
-# These matches are based on our station exploration
-# and the historical PM2.5 coverage checks.
-pm25_stations = {
-    "P001": "GT1",  # Fox Primary School
-    "P002": "CE3",  # St Thomas' Hospital
-    "P003": "BT8",  # Magnolia Court Care Home
-    "P004": "CE3",  # UCL North-West Wing
-    "P005": "CE3"   # 80 Strand
-}
+# Find the main PropLens folder.
+project_folder = Path(__file__).resolve().parents[1]
 
-# Barbican Estate (P006) is intentionally excluded.
-# We have not confirmed a sufficiently suitable PM2.5 station.
+# Find our DuckDB database.
+database_path = project_folder / "Data/proplens.duckdb"
 
+# Find the automatic station matches created earlier.
+matches_path = project_folder / "Outputs/station_matches.csv"
 
-# STEP 2: LOAD OUR BUILDING DATA
+# Decide where to save the PM2.5 comparison.
+output_path = project_folder / "Outputs/pm25_comparison.csv"
 
-properties = []
-
-with open("Data/properties.csv", encoding="utf-8") as file:
-    reader = csv.DictReader(file)
-
-    for property_row in reader:
-        properties.append(property_row)
+# Make sure the output folder exists.
+output_path.parent.mkdir(exist_ok=True)
 
 
-# STEP 3: LOAD OUR STATION COORDINATES
+# STEP 3: LOAD THE AUTOMATIC STATION MATCHES
 
-# Use LAQN metadata to calculate the distance between
-# each building and its chosen PM2.5 monitoring station.
-import json
-from math import radians, sin, cos, sqrt, atan2
+# Open the CSV containing matches for both pollutants.
+with open(matches_path, encoding="utf-8") as file:
+    all_matches = list(csv.DictReader(file))
 
-with open("Data/raw/london_stations.json", encoding="utf-8") as file:
-    station_data = json.load(file)
+# Keep only PM2.5 matches.
+pm25_matches = [
+    row for row in all_matches
+    if row["pollutant"] == "PM25"
+]
 
-stations = {
-    station["@SiteCode"]: station
-    for station in station_data["Sites"]["Site"]
-}
+# Stop if no PM2.5 matches were found.
+if not pm25_matches:
+    raise ValueError("No PM2.5 station matches were found.")
 
 
-# STEP 4: DEFINE THE DISTANCE FUNCTION
+# STEP 4: COUNT SHARED MONITORING STATIONS
 
-def distance_km(lat1, lon1, lat2, lon2):
-    """Calculate straight-line distance using the Haversine formula."""
+# More than one building may use the same monitoring station.
+# We need to explain this rather than treating the
+# measurements as independent building observations.
 
-    radius = 6371
+station_counts = {}
 
-    lat1, lon1 = radians(lat1), radians(lon1)
-    lat2, lon2 = radians(lat2), radians(lon2)
+for match in pm25_matches:
 
-    difference_lat = lat2 - lat1
-    difference_lon = lon2 - lon1
+    station_code = match["station_code"]
 
-    a = (
-        sin(difference_lat / 2) ** 2
-        + cos(lat1) * cos(lat2)
-        * sin(difference_lon / 2) ** 2
+    station_counts[station_code] = (
+        station_counts.get(station_code, 0) + 1
     )
-
-    return radius * 2 * atan2(sqrt(a), sqrt(1 - a))
 
 
 # STEP 5: CONNECT TO DUCKDB
 
-connection = duckdb.connect("Data/proplens.duckdb")
+connection = duckdb.connect(str(database_path))
 
 
-# STEP 6: COMPARE PM2.5 MEASUREMENTS
+# STEP 6: COMPARE THE PM2.5 MEASUREMENTS
 
+# Store the results before exporting them.
 report_rows = []
 
-print("\nPROPLENS - PM2.5 BUILDING COMPARISON")
-print("-----------------------------------")
+print("\nPROPLENS: PM2.5 BUILDING COMPARISON")
+print("----------------------------------")
 
-for property_row in properties:
+# Sort buildings alphabetically.
+for match in sorted(
+    pm25_matches,
+    key=lambda row: row["property_name"]
+):
 
-    property_id = property_row["property_id"]
+    # Read the building and station information.
+    name = match["property_name"]
+    building_type = match["building_type"]
 
-    # Do not invent a match for buildings without coverage.
-    if property_id not in pm25_stations:
-        print(
-            f"\n{property_row['property_name']}: "
-            "No suitable PM2.5 station confirmed."
-        )
-        continue
+    station_code = match["station_code"]
+    station_name = match["station_name"]
+    station_type = match["station_type"]
 
-    station_code = pm25_stations[property_id]
-    station = stations[station_code]
+    distance = float(match["distance_km"])
+    distance_status = match["distance_status"]
 
-    # Calculate the straight-line building-to-station distance.
-    distance = distance_km(
-        float(property_row["latitude"]),
-        float(property_row["longitude"]),
-        float(station["@Latitude"]),
-        float(station["@Longitude"])
-    )
 
-    # Calculate average PM2.5 and measurement completeness.
-    result = connection.execute("""
+    # STEP 7: CALCULATE THE POLLUTION AVERAGE
+
+    # Use the same 89-day period as our NO2 report.
+    #
+    # AVG ignores NULL values.
+    # COUNT(value) only counts numerical readings.
+    #
+    # There are 2136 expected hourly measurements:
+    # 89 days multiplied by 24 hours.
+
+    result = connection.execute(
+        """
         SELECT
-            ROUND(AVG(value), 2),
-            COUNT(*),
-            COUNT(value),
-            ROUND(100.0 * COUNT(value) / COUNT(*), 1)
+            ROUND(AVG(value), 2) AS average_pm25,
+
+            COUNT(*) AS recorded_hours,
+
+            COUNT(value) AS valid_hours,
+
+            ROUND(
+                100.0 * COUNT(value) / 2136,
+                1
+            ) AS completeness_percent
+
         FROM measurements
+
         WHERE site_code = ?
           AND species_code = 'PM25'
-    """, [station_code]).fetchone()
+          AND measured_at >= '2026-08-01'
+          AND measured_at < '2026-10-29'
+        """,
+        [station_code]
+    ).fetchone()
 
     average, recorded, valid, completeness = result
 
-    # Label the station's data completeness.
+
+    # STEP 8: CLASSIFY DATA QUALITY
+
+    # These thresholds are PropLens project rules,
+    # not official LAQN quality classifications.
+
     if completeness >= 95:
-        quality = "GOOD"
+        data_quality = "GOOD"
+
     elif completeness >= 80:
-        quality = "CAUTION"
+        data_quality = "CAUTION"
+
     else:
-        quality = "POOR"
+        data_quality = "POOR"
 
-    # Flag distant monitoring stations.
-    if distance <= 2:
-        distance_status = "NEARBY"
-    elif distance <= 3:
-        distance_status = "CAUTION"
+
+    # STEP 9: CHECK WHETHER THE STATION IS SHARED
+
+    shared_count = station_counts[station_code]
+
+    if shared_count > 1:
+        shared_station = "YES"
     else:
-        distance_status = "DISTANT"
+        shared_station = "NO"
 
-    # Show the result in the terminal.
-    print(f"\nBuilding: {property_row['property_name']}")
-    print(f"Building type: {property_row['building_type']}")
-    print(f"Station: {station_code}")
-    print(f"Distance: {distance:.2f} km ({distance_status})")
-    print(f"Average PM2.5: {average} ug/m3")
-    print(f"Completeness: {completeness}% ({valid}/{recorded})")
-    print(f"Data quality: {quality}")
 
+    # STEP 10: DISPLAY THE COMPARISON
+
+    print(f"\nBuilding: {name}")
+    print(f"Building type: {building_type}")
+    print(f"Station: {station_name} ({station_code})")
+    print(f"Station type: {station_type}")
+
+    print(
+        f"Distance: {distance:.2f} km "
+        f"({distance_status})"
+    )
+
+    if average is not None:
+        print(f"Average PM2.5: {average:.2f} ug/m3")
+    else:
+        print("Average PM2.5: No valid measurements")
+
+    print(f"Completeness: {completeness}%")
+    print(f"Valid readings: {valid}/{recorded}")
+    print(f"Data quality: {data_quality}")
+
+    # Explain when multiple buildings share data.
+    if shared_station == "YES":
+        print(
+            f"Note: This station is shared by "
+            f"{shared_count} buildings."
+        )
+
+    # Flag stations located relatively far away.
     if distance_status == "DISTANT":
-        print("Warning: Station may not represent local conditions.")
+        print(
+            "Warning: Monitoring station is over 3 km away."
+        )
 
-    # Prepare the result for our CSV output.
+
+    # STEP 11: PREPARE A ROW FOR THE CSV
+
     report_rows.append({
-        "property_name": property_row["property_name"],
-        "building_type": property_row["building_type"],
+        "property_name": name,
+        "building_type": building_type,
         "station_code": station_code,
-        "distance_km": round(distance, 2),
+        "station_name": station_name,
+        "station_type": station_type,
+        "distance_km": distance,
         "distance_status": distance_status,
         "average_pm25_ug_m3": average,
         "recorded_hours": recorded,
         "valid_hours": valid,
         "completeness_percent": completeness,
-        "data_quality": quality
+        "data_quality": data_quality,
+        "shared_station": shared_station
     })
 
 
-# STEP 7: SAVE THE REPORT
+# STEP 12: SAVE THE COMPARISON REPORT
 
-Path("Outputs").mkdir(exist_ok=True)
+# Keep the same column structure as our NO2 report,
+# apart from the pollutant concentration column.
 
 columns = [
     "property_name",
     "building_type",
     "station_code",
+    "station_name",
+    "station_type",
     "distance_km",
     "distance_status",
     "average_pm25_ug_m3",
     "recorded_hours",
     "valid_hours",
     "completeness_percent",
-    "data_quality"
+    "data_quality",
+    "shared_station"
 ]
 
 with open(
-    "Outputs/pm25_comparison.csv",
+    output_path,
     "w",
     newline="",
     encoding="utf-8"
 ) as file:
 
     writer = csv.DictWriter(file, fieldnames=columns)
+
     writer.writeheader()
     writer.writerows(report_rows)
 
 
-# STEP 8: CLOSE THE DATABASE
+# STEP 13: CLOSE THE DATABASE
 
 connection.close()
 
-print("\nPM2.5 report saved to Outputs/pm25_comparison.csv")
+print("\nPM2.5 comparison completed successfully.")
+print(f"Buildings compared: {len(report_rows)}")
+print("Saved to Outputs/pm25_comparison.csv")

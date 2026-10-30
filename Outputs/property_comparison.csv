@@ -1,7 +1,7 @@
-property_name,building_type,station_code,distance_km,distance_status,average_no2_ug_m3,recorded_hours,valid_hours,completeness_percent,data_quality,shared_station
-Fox Primary School,School,GT1,1.55,NEARBY,12.66,2136,2121,99.3,GOOD,NO
-80 Strand,Office,CE3,1.21,NEARBY,28.21,2136,2114,99.0,GOOD,YES
-Barbican Estate,Residential,CE3,3.21,DISTANT,28.21,2136,2114,99.0,GOOD,YES
-St Thomas Hospital,Hospital,CE3,1.97,NEARBY,28.21,2136,2114,99.0,GOOD,YES
-UCL North-West Wing,University,CE3,1.51,NEARBY,28.21,2136,2114,99.0,GOOD,YES
-Magnolia Court Care Home,Care Home,BT4,4.1,DISTANT,33.01,2136,1938,90.7,CAUTION,NO
+property_name,building_type,station_code,station_name,station_type,distance_km,distance_status,average_no2_ug_m3,recorded_hours,valid_hours,completeness_percent,data_quality,shared_station
+80 Strand,Office,CE3,Regent Street (The Crown Estate),Roadside,1.21,NEARBY,28.21,2136,2114,99.0,GOOD,YES
+Barbican Estate,Residential,CE3,Regent Street (The Crown Estate),Roadside,3.21,DISTANT,28.21,2136,2114,99.0,GOOD,YES
+Fox Primary School,School,GT1,Kensington and Chelsea - Station Walk,Urban Background,1.55,NEARBY,12.66,2136,2121,99.3,GOOD,NO
+Magnolia Court Care Home,Care Home,BT4,Brent - Ikea,Roadside,4.1,DISTANT,33.01,2136,1938,90.7,CAUTION,NO
+St Thomas Hospital,Hospital,CE3,Regent Street (The Crown Estate),Roadside,1.97,NEARBY,28.21,2136,2114,99.0,GOOD,YES
+UCL North-West Wing,University,CE3,Regent Street (The Crown Estate),Roadside,1.51,NEARBY,28.21,2136,2114,99.0,GOOD,YES
