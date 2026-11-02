@@ -1,3 +1,20 @@
+# PROPLENS AUTOMATIC BUILDING TO STATION MATCHING
+#
+# PURPOSE
+# For each building and for each pollutant, find the geographically nearest
+# monitoring station that passes the historical quality checks.
+#
+# INPUTS
+# Data/properties.csv holds building coordinates. LAQN station metadata
+# supplies monitoring station coordinates and environment labels. The
+# station_quality.csv report identifies stations with adequate data.
+#
+# IMPORTANT TRADEOFF
+# The nearest station overall may have poor coverage, so we first screen
+# stations for data completeness and THEN calculate distances. A sufficiently
+# complete station may be several kilometres away. This does not measure
+# pollution at the building and is not a personal exposure estimate.
+
 
 # PROPLENS - AUTOMATIC STATION MATCHING
 #
@@ -49,7 +66,7 @@ station_lookup = {
 # These thresholds are our own project screening rules,
 # not official LAQN suitability standards.
 minimum_completeness = 90.0
-minimum_recorded_hours = 2000
+
 
 eligible_stations = []
 
@@ -63,7 +80,7 @@ with open(quality_file, encoding="utf-8") as file:
 
         if (
             completeness >= minimum_completeness
-            and recorded >= minimum_recorded_hours
+            and row["coverage_status"] == "SUITABLE"
             and row["site_code"] in station_lookup
         ):
             eligible_stations.append(row)

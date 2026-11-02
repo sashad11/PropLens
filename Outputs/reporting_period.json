@@ -1,0 +1,8 @@
+{
+  "start_date": "2026-08-01",
+  "end_date": "2026-11-01",
+  "end_exclusive": "2026-11-02",
+  "expected_hours": 2232,
+  "target_count": 13,
+  "rule": "latest completed UTC date with 24 stored hourly timestamps for every configured station and pollutant"
+}

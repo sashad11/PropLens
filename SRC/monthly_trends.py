@@ -1,101 +1,51 @@
-
-# PROPLENS - MONTHLY AIR QUALITY TRENDS
+# PROPLENS MONTHLY NITROGEN DIOXIDE REPORT
 #
-# Purpose:
-# Calculate the average NO2 concentration for each building
-# in each month, using its matched monitoring station.
+# PURPOSE
+# Aggregate hourly NO2 readings into monthly averages for each building's
+# selected station. The building-to-station matches come from the AUTOMATIC
+# match report, rather than the older manual matching file.
+#
+# HOW THE QUERY WORKS
+# The JOIN pairs each building with measurements from its chosen station.
+# The date filters use the shared reporting window; the upper bound is
+# exclusive. AVG ignores NULL readings and COUNT(value) counts valid ones.
+# A station matched to several buildings can therefore appear several times
+# in this building-oriented report. Those rows are NOT independent monitors.
+# The dashboard removes repeated station-month combinations for its chart.
 
-import csv
+# PROPLENS MONTHLY NO2 TRENDS
+# Use automatic station matches and the same reporting period as other reports.
+
 from pathlib import Path
 import duckdb
+from reporting_window import read_window
 
+project = Path(__file__).resolve().parents[1]
+window = read_window()
+con = duckdb.connect(str(project / "Data/proplens.duckdb"))
+output = project / "Outputs/monthly_trends.csv"
+matches = project / "Outputs/station_matches.csv"
 
-# STEP 1: CONNECT TO OUR EXISTING DATABASE
-
-connection = duckdb.connect("Data/proplens.duckdb")
-
-
-# STEP 2: CALCULATE MONTHLY AVERAGES
-
-# Match each building with its station's NO2 measurements.
-# Group the readings by building and calendar month.
-results = connection.execute("""
-    SELECT
-        p.property_name,
-        p.building_type,
-        p.station_code,
-        STRFTIME(m.measured_at, '%Y-%m') AS month,
-
-        ROUND(AVG(m.value), 2) AS average_no2,
-
-        COUNT(m.value) AS valid_readings,
-        COUNT(*) AS total_readings
-
-    FROM read_csv_auto('Data/property_matches.csv') AS p
-
-    JOIN measurements AS m
-        ON p.station_code = m.site_code
-
-    WHERE m.species_code = 'NO2'
-
-    GROUP BY
-        p.property_name,
-        p.building_type,
-        p.station_code,
-        STRFTIME(m.measured_at, '%Y-%m')
-
-    ORDER BY
-        p.property_name,
-        month
-""").fetchall()
-
-
-# STEP 3: CREATE THE OUTPUT FOLDER
-
-# Make sure the folder exists before saving the report.
-Path("Outputs").mkdir(exist_ok=True)
-
-
-# STEP 4: SAVE THE MONTHLY RESULTS TO CSV
-
-output_file = "Outputs/monthly_trends.csv"
-
-columns = [
-    "property_name",
-    "building_type",
-    "station_code",
-    "month",
-    "average_no2",
-    "valid_readings",
-    "total_readings"
-]
-
-with open(output_file, "w", newline="", encoding="utf-8") as file:
-
-    writer = csv.writer(file)
-
-    # Write column headings.
-    writer.writerow(columns)
-
-    # Write each monthly result.
-    writer.writerows(results)
-
-
-# STEP 5: DISPLAY A PREVIEW
-
-print("\nPROPLENS - MONTHLY NO2 TRENDS")
-print("-----------------------------")
-
-for row in results:
-    print(
-        f"{row[0]} | {row[3]} | "
-        f"{row[4]} µg/m³ | "
-        f"{row[5]}/{row[6]} valid readings"
-    )
-
-
-# STEP 6: CLOSE THE DATABASE CONNECTION
-
-connection.close()
-
-print(f"\nMonthly trends saved to {output_file}")
+con.execute("""
+    COPY (
+        SELECT
+            p.property_name,
+            p.building_type,
+            p.station_code,
+            STRFTIME(m.measured_at, '%Y-%m') AS month,
+            ROUND(AVG(m.value), 2) AS average_no2,
+            COUNT(m.value) AS valid_readings,
+            COUNT(*) AS total_readings
+        FROM read_csv_auto(?) AS p
+        JOIN measurements AS m
+          ON p.station_code = m.site_code
+         AND m.species_code = 'NO2'
+        WHERE p.pollutant = 'NO2'
+          AND m.measured_at >= ?
+          AND m.measured_at < ?
+        GROUP BY p.property_name, p.building_type, p.station_code, month
+        ORDER BY p.property_name, month
+    ) TO ? (HEADER, DELIMITER ',')
+""", [str(matches), window['start_date'], window['end_exclusive'], str(output)])
+con.close()
+print(f"Monthly NO2 trends saved: {output}")

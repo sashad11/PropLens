@@ -1,3 +1,19 @@
+# PROPLENS INTERACTIVE DASHBOARD
+#
+# PURPOSE
+# Present the reports prepared by the collection, database and analysis
+# stages. The dashboard does not directly download pollution measurements.
+#
+# HOW UPDATES APPEAR
+# Run SRC/update_all.py first to regenerate the CSV reports and shared
+# reporting_period.json. Then reload or restart Streamlit to see those
+# reports. This dashboard is local and does not schedule daily updates.
+#
+# INTERPRETATION
+# A monitoring station may be shared by several buildings. Charts should
+# avoid treating repeated station measurements as independent observations.
+# Distances are approximate and do not imply personal pollution exposure.
+
 
 # PROPLENS DASHBOARD
 #
@@ -6,6 +22,8 @@
 # measurements near different types of London buildings.
 
 from pathlib import Path
+import json
+from datetime import date
 
 import pandas as pd
 import streamlit as st
@@ -25,6 +43,16 @@ st.set_page_config(
 
 project_folder = Path(__file__).resolve().parent
 outputs_folder = project_folder / "Outputs"
+
+# Read the reporting period chosen by the pipeline.
+period_file = outputs_folder / "reporting_period.json"
+if not period_file.exists():
+    st.error("No reporting period found. Run SRC/update_all.py first.")
+    st.stop()
+reporting_period = json.loads(period_file.read_text(encoding="utf-8"))
+start_day = date.fromisoformat(reporting_period["start_date"])
+end_day = date.fromisoformat(reporting_period["end_date"])
+number_of_days = (end_day - start_day).days + 1
 
 
 # STEP 3: LOAD OUR ANALYSIS REPORTS
@@ -49,7 +77,7 @@ st.write(
 )
 
 st.caption(
-    "Historical analysis: 1 August to 28 October 2026. "
+    f"Historical analysis: {start_day:%d %B %Y} to {end_day:%d %B %Y}. "
     "Measurements come from nearby monitoring stations, "
     "not directly from the buildings."
 )
@@ -66,7 +94,7 @@ with col2:
     st.metric("Pollutants", 2)
 
 with col3:
-    st.metric("Historical days", 89)
+    st.metric("Historical days", number_of_days)
 
 
 # STEP 6: DISPLAY THE COMPARISON TABLES
@@ -130,7 +158,7 @@ fig.update_layout(
 )
 
 # Show the chart in our Streamlit dashboard.
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # Explain why there are fewer bars than buildings.
 st.caption(
@@ -171,7 +199,7 @@ table_data.columns = [
 st.dataframe(
     table_data,
     hide_index=True,
-    use_container_width=True
+    width="stretch"
 )
 
 
@@ -208,6 +236,18 @@ else:
 
     monthly_value = "average_pm25_ug_m3"
 
+# STANDARDISE THE STATION COLUMN
+#
+# The NO2 monthly report uses "station_code".
+# The PM2.5 monthly report uses "site_code".
+#
+# Rename the PM2.5 column so the dashboard can
+# handle both reports using the same code.
+
+if "site_code" in monthly_data.columns:
+    monthly_data = monthly_data.rename(
+        columns={"site_code": "station_code"}
+    )
 
 # STEP 11: PREPARE THE DATA
 
@@ -270,7 +310,7 @@ st.plotly_chart(
 st.caption(
     "Each line represents one monitoring station. "
     "Shared stations are counted once. "
-    "October includes measurements only up to 28 October."
+    f"The latest month includes measurements through {end_day:%d %B %Y}."
 )
 
 

@@ -1,3 +1,13 @@
+# PROPLENS PM2.5 BUILDING COMPARISONS
+#
+# PURPOSE
+# Generate one building comparison row per chosen PM2.5 station match,
+# using the shared reporting period and completeness checks.
+#
+# A station can represent several buildings in the exploratory comparison;
+# this is NOT evidence of measurements taken at those buildings. Distance
+# and monitoring type are included to make that uncertainty visible.
+
 
 # PROPLENS: PM2.5 BUILDING COMPARISON
 #
@@ -22,6 +32,9 @@ from pathlib import Path
 
 # Query our database.
 import duckdb
+from reporting_window import read_window
+
+window = read_window()
 
 
 # STEP 2: FIND OUR PROJECT FILES
@@ -127,7 +140,7 @@ for match in sorted(
             COUNT(value) AS valid_hours,
 
             ROUND(
-                100.0 * COUNT(value) / 2136,
+                100.0 * COUNT(value) / ?,
                 1
             ) AS completeness_percent
 
@@ -135,10 +148,10 @@ for match in sorted(
 
         WHERE site_code = ?
           AND species_code = 'PM25'
-          AND measured_at >= '2026-08-01'
-          AND measured_at < '2026-10-29'
+          AND measured_at >= ?
+          AND measured_at < ?
         """,
-        [station_code]
+        [window["expected_hours"], station_code, window["start_date"], window["end_exclusive"]]
     ).fetchone()
 
     average, recorded, valid, completeness = result

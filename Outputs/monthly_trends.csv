@@ -1,19 +1,25 @@
 property_name,building_type,station_code,month,average_no2,valid_readings,total_readings
 80 Strand,Office,CE3,2026-08,27.06,743,744
 80 Strand,Office,CE3,2026-09,29.35,717,720
-80 Strand,Office,CE3,2026-10,28.27,654,672
+80 Strand,Office,CE3,2026-10,28.27,654,744
+80 Strand,Office,CE3,2026-11,,0,24
 Barbican Estate,Residential,CE3,2026-08,27.06,743,744
 Barbican Estate,Residential,CE3,2026-09,29.35,717,720
-Barbican Estate,Residential,CE3,2026-10,28.27,654,672
+Barbican Estate,Residential,CE3,2026-10,28.27,654,744
+Barbican Estate,Residential,CE3,2026-11,,0,24
 Fox Primary School,School,GT1,2026-08,12.47,738,744
 Fox Primary School,School,GT1,2026-09,13.24,718,720
-Fox Primary School,School,GT1,2026-10,12.26,665,672
+Fox Primary School,School,GT1,2026-10,14.18,737,744
+Fox Primary School,School,GT1,2026-11,15.97,24,24
 Magnolia Court Care Home,Care Home,BT4,2026-08,35.17,738,744
 Magnolia Court Care Home,Care Home,BT4,2026-09,32.99,698,720
-Magnolia Court Care Home,Care Home,BT4,2026-10,29.88,502,672
+Magnolia Court Care Home,Care Home,BT4,2026-10,32.02,571,744
+Magnolia Court Care Home,Care Home,BT4,2026-11,29.93,13,24
 St Thomas Hospital,Hospital,CE3,2026-08,27.06,743,744
 St Thomas Hospital,Hospital,CE3,2026-09,29.35,717,720
-St Thomas Hospital,Hospital,CE3,2026-10,28.27,654,672
+St Thomas Hospital,Hospital,CE3,2026-10,28.27,654,744
+St Thomas Hospital,Hospital,CE3,2026-11,,0,24
 UCL North-West Wing,University,CE3,2026-08,27.06,743,744
 UCL North-West Wing,University,CE3,2026-09,29.35,717,720
-UCL North-West Wing,University,CE3,2026-10,28.27,654,672
+UCL North-West Wing,University,CE3,2026-10,28.27,654,744
+UCL North-West Wing,University,CE3,2026-11,,0,24

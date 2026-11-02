@@ -1,3 +1,20 @@
+# PROPLENS HOURLY WEEKDAY AND WEEKEND REPORT
+#
+# PURPOSE
+# Group historical measurements by station, pollutant, time of day and
+# weekday/weekend. This lets the dashboard display two hourly curves.
+#
+# READING THE SQL
+# The CTE named eligible_stations reads the quality report and retains only
+# suitable monitoring station and pollutant pairs. JOIN filters the main
+# measurements table to those eligible pairs. GROUP BY computes averages
+# for each hour and day type. AVG automatically ignores NULL readings.
+#
+# TIMEZONE CAUTION
+# LAQN timestamps here are GMT/UTC, so during British Summer Time these
+# hours differ from local London clock time by one hour. This report is a
+# descriptive pattern, not proof of what causes any peaks.
+
 
 # PROPLENS - HOURLY POLLUTION PATTERNS
 #
@@ -9,6 +26,9 @@
 
 from pathlib import Path
 import duckdb
+from reporting_window import read_window
+
+window = read_window()
 
 # STEP 1: SET UP FILE PATHS
 
@@ -66,8 +86,8 @@ connection.execute("""
             ON m.site_code = s.site_code
             AND m.species_code = s.species_code
 
-        WHERE m.measured_at >= '2026-08-01'
-          AND m.measured_at < '2026-10-29'
+        WHERE m.measured_at >= ?
+          AND m.measured_at < ?
 
         GROUP BY
             m.site_code,
@@ -83,7 +103,7 @@ connection.execute("""
     )
     TO ?
     (HEADER, DELIMITER ',')
-""", [str(quality_path), str(output_path)])
+""", [str(quality_path), window["start_date"], window["end_exclusive"], str(output_path)])
 
 connection.close()
 

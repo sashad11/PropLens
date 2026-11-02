@@ -1,3 +1,14 @@
+# PROPLENS NO2 BUILDING COMPARISONS
+#
+# PURPOSE
+# Attach average historical NO2 concentrations to each building using its
+# automatically selected monitoring station. Output also shows distance,
+# station environment and completeness so users see the limitations.
+#
+# The SQL JOIN matches station codes. Multiple buildings can use the same
+# station, so equal values must not be interpreted as separate observations.
+# The selected date window comes from Outputs/reporting_period.json.
+
 
 # PROPLENS - BUILDING ENVIRONMENTAL COMPARISON
 #
@@ -22,6 +33,9 @@ from pathlib import Path
 
 # Query our air quality database.
 import duckdb
+from reporting_window import read_window
+
+window = read_window()
 
 
 # STEP 2: FIND OUR PROJECT FILES
@@ -95,7 +109,7 @@ results = connection.execute("""
         -- Calculate completeness against all expected
         -- hours, including any entirely missing timestamps.
         ROUND(
-            100.0 * COUNT(m.value) / 2136,
+            100.0 * COUNT(m.value) / ?,
             1
         ) AS completeness_percent
 
@@ -104,8 +118,8 @@ results = connection.execute("""
     LEFT JOIN measurements AS m
         ON p.station_code = m.site_code
         AND m.species_code = 'NO2'
-        AND m.measured_at >= '2026-08-01'
-        AND m.measured_at < '2026-10-29'
+        AND m.measured_at >= ?
+        AND m.measured_at < ?
 
     GROUP BY
         p.property_name,
@@ -120,7 +134,7 @@ results = connection.execute("""
     -- to compare without implying a building ranking.
     ORDER BY p.property_name
 
-""").fetchall()
+""", [window["expected_hours"], window["start_date"], window["end_exclusive"]]).fetchall()
 
 
 # STEP 5: IDENTIFY SHARED MONITORING STATIONS
